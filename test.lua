@@ -33,7 +33,7 @@ function getFrame(name)
 end
 
 print("getFrame function loaded")
-
+--
 -- Analyse desc of task
 function analyseDesc(desc)
     local tempItem = "" -- variable to return what i need to collect/obtain/etc
