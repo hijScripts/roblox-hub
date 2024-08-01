@@ -36,15 +36,20 @@ print("getFrame function loaded")
 --
 -- Analyse desc of task
 function analyseDesc(desc)
-    local tempItem = "" -- variable to return what i need to collect/obtain/etc
-    local tempField = "" -- variable to return what field i need to be in
+    local descTable = {} -- Table to return values
+    local wordsList = {} -- Variable to store words in sentence to access previous words
 
     for word in string.gmatch(desc, "%a+") do
-        if word == "Collect" then
-            tempItem = "Pollen"
-            tempField = "field"
+        table.insert(wordsList, word)
 
-            return {tempItem, tempField}
+        if word == "Collect" then
+            table.insert(descTable, "Pollen")
+        end
+
+        if word == "Field" or word == "Patch" or word == "Forest" then
+            table.insert(descTable, wordsList[#wordsList - 1] .. " " .. word)
+
+            return descTable
         end
     end
 
@@ -53,12 +58,50 @@ end
 
 print("analyseDesc function loaded")
 
+
+-- Teleport Function // takes CFrame as pos
+function goTo(pos)
+    character:MoveTo(pos)
+end
+
+print("goTo function loaded")
+
+-- Function to get position of a field
+function getFieldPos(fieldName)
+    for index, field in ipairs(fields) do
+        if field.Name == fieldName then
+            return field.Position
+        end
+    end
+end
+
+print("getFieldPos function loaded")
+
 -- Complete a task
 function completeTask(item, field)
-    print(item, field.Name)
+    local fieldPos = getFieldPos(field) -- Position to move character to
+
+    goTo(fieldPos)
+
+    local i = 0 -- test vari
+    while i<10 do
+        wait(0.5)
+        autoFarm()
+        i = i + 1
+    end
+
+    print(field .. " Has been farmed.")
+
 end
 
 print("completeTask function loaded")
+
+-- Auto Farm Function
+function autoFarm() -- weapon cd maybe? 
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
+end
+
+print("autoFarm function loaded")
 
 -- Auto Quest
 function autoQuest()
