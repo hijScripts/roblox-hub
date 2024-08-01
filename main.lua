@@ -1,38 +1,3 @@
--- Player Variables
-local workspace = game:GetService("Workspace")
-local player = game:GetService("Players").LocalPlayer
-local character = player.Character
-local humanoid = character:FindFirstChild("Humanoid")
-local humanoidRoot = player.Character.HumanoidRootPart
-
--- Variables used for functions handling hives
-local hiveFolder = workspace.Honeycombs
-local hives = hiveFolder:GetChildren()
-
--- Variables used for functions handling fields
-local fieldsFolder = workspace.FlowerZones
-local fields = fieldsFolder:GetChildren()
-
--- Variables used for functions handling NPCs
-local npcFolder = workspace.NPCs
-local npcs = npcFolder:GetChildren()
-
--- Variable for all toggles
-local toggleList = {}
-
--- Variable for menus
-local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
-local menuOptions = menu.Children:GetChildren()
-
--- Code table
-codes = {"summersmas", "15MMembers", "WalmartToys", "WeekExtension",
-"38217", "Banned", "BeesBuzz123", "BopMaster", "Buzz", "CarmenSanDiego", 
-"ClubBean", "ClubConverters", "Cog", "Connoisseur", "Crawlers", "Cubly", "Dysentery",
-"GumdropsForScience", "Jumpstart", "Luther", "Marshmallow", "Millie", "Nectar", "Roof", 
-"SecretProfileCode", "Sure", "Troggles", "Wax", "WordFactory", "Wink", "DarzethDoodads", 
-"ThnxCyasToyBox"}
-
-
 -- UI Library Variable
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
@@ -57,48 +22,95 @@ local Tabs = {
 
 local Options = Fluent.Options
 
+-- Player Variables
+local workspace = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character
+local humanoid = character:FindFirstChild("Humanoid")
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+
+-- Pathfinding Variables
+local pathFinding = game:GetService("PathfindingService")
+
+-- Variables used for functions handling hives
+local hiveFolder = workspace.Honeycombs
+local hives = hiveFolder:GetChildren()
+
+-- Variables used for functions handling fields
+local fieldsFolder = workspace.FlowerZones
+local fields = fieldsFolder:GetChildren()
+
+-- Variables used for functions handling NPCs
+local npcFolder = workspace.NPCs
+local npcs = npcFolder:GetChildren()
+
+-- Variable for all toggles
+local toggleList = {}
+
+-- Variable for menus
+local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
+local menuOptions = menu.Children:GetChildren()
+
 -- Get Selected Menu frame
 function getFrame(name)
-    for index, option in ipairs(menuOptions) do
+    for index, option in pairs(menuOptions) do
         if option.Name == name then
             return option
         end
     end
 end
 
--- Determing if function is into
-function isInt(char)
-    local numList = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"} -- List of integers to compare to char passed through
-
-    for index, value in ipairs(numList) do
-        if value == char then
-            return true
-        end
-    end
-
-    return false
-end
-
 -- Analyse desc of task
 function analyseDesc(desc)
-    local tempItem = "" -- variable to return what i need to collect/obtain/etc
-    local tempField = "" -- variable to return what field i need to be in
+    local descTable = {} -- Table to return values
+    local wordsList = {} -- Variable to store words in sentence to access previous words
 
     for word in string.gmatch(desc, "%a+") do
-        if word == "Collect" then
-            tempItem = "Pollen"
-            tempField = "field"
+        table.insert(wordsList, word)
 
-            return {tempItem, tempField}
+        if word == "Collect" then
+            table.insert(descTable, "Pollen")
+        end
+
+        if word == "Field" or word == "Patch" or word == "Forest" then
+            table.insert(descTable, wordsList[#wordsList - 1] .. " " .. word)
+
+            return descTable
         end
     end
 
     return nil
 end
 
+-- Function to get position of a field
+function getFieldPos(fieldName)
+    for index, field in pairs(fields) do
+        if field.Name == fieldName then
+            return field.Position
+        end
+    end
+end
+
 -- Complete a task
 function completeTask(item, field)
-    print(item, field.Name)
+    local fieldPos = getFieldPos(field) -- Position to move character to
+
+    goTo(fieldPos)
+
+    local i = 0 -- test vari
+    while i<10 do
+        wait(0.5)
+        autoFarm()
+        i = i + 1
+    end
+
+    print(field .. " Has been farmed.")
+
+end
+
+-- Auto Farm Function
+function autoFarm() -- weapon cd maybe? 
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
 end
 
 -- Auto Quest
@@ -111,11 +123,11 @@ function autoQuest()
     local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
 
     --3. Get all tasks for a quest
-    for index, quest in ipairs(questList) do
+    for index, quest in pairs(questList) do
         local taskList = quest:GetChildren()
 
         -- 4. Check completion status
-        for index, task in ipairs(taskList) do
+        for index, task in pairs(taskList) do
             local tempTask = task
             if tempTask.Name ~= "TitleBar" then -- name of quest irrelevant
                 if #tempTask.FillBar:GetChildren() <= 0 then -- Comparing length of list. Completed tasks have length > 0
@@ -140,7 +152,7 @@ function autoHolidayQuest()
     local npcList = populateList(npcs) -- List of NPCs
     local updatedNpcList = {} -- List to store the name of each npc with no spaces
 
-    for index, npc in ipairs(npcList) do
+    for index, npc in pairs(npcList) do
         local name = npc -- name of selected npc
         local tempName = "" -- temp name used to append to list, resets for every npc
 
@@ -151,7 +163,7 @@ function autoHolidayQuest()
         table.insert(updatedNpcList, tempName .. "Xmas24")
     end
 
-    for index, npc in ipairs(updatedNpcList) do -- Brute force accepting all Xmas 2024 quests
+    for index, npc in pairs(updatedNpcList) do -- Brute force accepting all Xmas 2024 quests
         local args = {
             [1] = npc
         }
@@ -160,22 +172,27 @@ function autoHolidayQuest()
     end
 end
 
--- auto jump when enemy near
-
--- shop TPs
-
--- collect token spawns
-
--- auto use abilities
-
--- auto under cloud
-
--- auto claim badge
-
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
 end
+
+-- Function to move character to given position
+function goTo(pos)
+    local path = pathFinding:CreatePath() -- path to desired position
+    path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
+ 
+    local waypoints = path:GetWaypoints() -- getting all waypoints of path
+ 
+    for index, waypoint in pairs(waypoints) do
+       if waypoint.Action == Enum.PathWaypointAction.Jump then -- Detecting if character needs to jump
+          humanoid:ChangeState(Enum.HumanoidStateType.Jumping) -- Making character jump
+       end
+ 
+       humanoid:MoveTo(waypoint.Position)
+       humanoid.MoveToFinished:Wait(1)
+    end
+ end
 
 -- Auto Sell Function
 function autoSell()
@@ -194,16 +211,11 @@ function autoSell()
     end
 end
 
--- Teleport Function // takes CFrame as pos
-function goTo(pos)
-    character:MoveTo(pos)
-end
-
 -- Populate list with all fields
 function populateList(list)
-    local itemList = {} -- list to return of all fields
+    local itemList = {"Empty"} -- list to return of all fields
 
-    for index, item in ipairs(list) do
+    for index, item in pairs(list) do
         table.insert(itemList, item.Name)
     end
 
@@ -222,7 +234,7 @@ end
 
 -- Check if hive exists
 function checkHives()
-    for index, hive in ipairs(hives) do
+    for index, hive in pairs(hives) do
         if hive.Owner.Value == player.DisplayName then
             return true
         else
@@ -232,14 +244,14 @@ function checkHives()
 end
 
 -- Catch users death to toggle off all cheats
-function catchDeath()
-    print("You have died!")
-    for toggle in toggleList do 
-        local toggleFunc = toggleList[toggle] -- storing function into a variable so i can toggle off
+-- function catchDeath()
+--     print("You have died!")
+--     for toggle in toggleList do 
+--         local toggleFunc = toggleList[toggle] -- storing function into a variable so i can toggle off
 
-        toggleFunc:SetValue(false) -- Turning off all toggles off
-    end
-end
+--         toggleFunc:SetValue(false) -- Turning off all toggles off
+--     end
+-- end
 
 -- Redeem Code Function
 function redeemCode(code)
@@ -250,30 +262,25 @@ function redeemCode(code)
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromoCodeEvent"):FireServer(unpack(args))
 end
 
--- FUnction to auto collect dropped items
+-- Function to auto collect dropped items
 
 -- Auto summon eggs
 
 -- Auto upgrade items
 
--- Check item amount // returns amount
--- function checkItemCount(item)
--- 1. find item
--- local eggsMenu = menu.Children.Eggs.Content:WaitForChild("EggRows") -- The list of items in inventory
--- local inv = eggsMenu:GetChildren()
+-- auto jump when enemy near
 
--- for row in inv do
---     print(row)
--- end
+-- shop TPs
 
--- 2. find count
+-- collect token spawns
 
+-- auto use abilities
 
--- 3. return count
+-- auto under cloud
 
--- end
+-- auto claim badge
 
-
+-- "INJECTING" UI
 do
     Fluent:Notify({
         Title = "Notification",
@@ -310,12 +317,12 @@ do
 
     -- TP to Hive 
     Tabs.mainTab:AddButton({
-        Title = "TP to Hive",
-        Description = "Teleports you to your hive",
+        Title = "Go to Hive",
+        Description = "Takes you to your hive",
         Callback = function()
             Window:Dialog({
                 Title = "Are you sure?",
-                Content = "Did you mean to teleport back to your hive?",
+                Content = "Did you mean to go back to your hive?",
                 Buttons = {
                     {
                         Title = "Confirm",
@@ -429,7 +436,7 @@ do
     })
 
     zoneDropdown:OnChanged(function(value)
-        for index, field in ipairs(fields) do
+        for index, field in pairs(fields) do
             if field.Name == value then
                 goTo(field.Position)
             end
@@ -445,7 +452,7 @@ do
     })
 
     npcDropdown:OnChanged(function(value)
-        for index, npc in ipairs(npcs) do
+        for index, npc in pairs(npcs) do
             if npc.Name == value then
                 goTo(npc.Circle.Position)
             end

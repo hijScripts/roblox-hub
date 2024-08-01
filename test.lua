@@ -3,11 +3,10 @@ local workspace = game:GetService("Workspace")
 local player = game:GetService("Players").LocalPlayer
 local character = player.Character
 local humanoid = character:FindFirstChild("Humanoid")
-local humanoidRoot = player.Character.HumanoidRootPart
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
 
--- Variable for menus
-local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
-local menuOptions = menu.Children:GetChildren()
+-- Pathfinding Variables
+local pathFinding = game:GetService("PathfindingService")
 
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
@@ -21,19 +20,22 @@ local fields = fieldsFolder:GetChildren()
 local npcFolder = workspace.NPCs
 local npcs = npcFolder:GetChildren()
 
-print("Variables loaded")
+-- Variable for all toggles
+local toggleList = {}
+
+-- Variable for menus
+local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
+local menuOptions = menu.Children:GetChildren()
 
 -- Get Selected Menu frame
 function getFrame(name)
-    for index, option in ipairs(menuOptions) do
+    for index, option in pairs(menuOptions) do
         if option.Name == name then
             return option
         end
     end
 end
 
-print("getFrame function loaded")
---
 -- Analyse desc of task
 function analyseDesc(desc)
     local descTable = {} -- Table to return values
@@ -56,26 +58,14 @@ function analyseDesc(desc)
     return nil
 end
 
-print("analyseDesc function loaded")
-
-
--- Teleport Function // takes CFrame as pos
-function goTo(pos)
-    character:MoveTo(pos)
-end
-
-print("goTo function loaded")
-
 -- Function to get position of a field
 function getFieldPos(fieldName)
-    for index, field in ipairs(fields) do
+    for index, field in pairs(fields) do
         if field.Name == fieldName then
             return field.Position
         end
     end
 end
-
-print("getFieldPos function loaded")
 
 -- Complete a task
 function completeTask(item, field)
@@ -94,14 +84,10 @@ function completeTask(item, field)
 
 end
 
-print("completeTask function loaded")
-
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
 end
-
-print("autoFarm function loaded")
 
 -- Auto Quest
 function autoQuest()
@@ -113,11 +99,11 @@ function autoQuest()
     local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
 
     --3. Get all tasks for a quest
-    for index, quest in ipairs(questList) do
+    for index, quest in pairs(questList) do
         local taskList = quest:GetChildren()
 
         -- 4. Check completion status
-        for index, task in ipairs(taskList) do
+        for index, task in pairs(taskList) do
             local tempTask = task
             if tempTask.Name ~= "TitleBar" then -- name of quest irrelevant
                 if #tempTask.FillBar:GetChildren() <= 0 then -- Comparing length of list. Completed tasks have length > 0
@@ -137,8 +123,4 @@ function autoQuest()
     end
 end
 
-print("autoQuest function loaded")
-
 autoQuest()
-
-print("Executed autoQuest")
