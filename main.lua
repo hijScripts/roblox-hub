@@ -160,8 +160,20 @@ function autoHolidayQuest()
     end
 end
 
+-- auto jump when enemy near
+
+-- shop TPs
+
+-- collect token spawns
+
+-- auto use abilities
+
+-- auto under cloud
+
+-- auto claim badge
+
 -- Auto Farm Function
-function autoFarm()
+function autoFarm() -- weapon cd maybe? 
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
 end
 
@@ -238,7 +250,11 @@ function redeemCode(code)
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromoCodeEvent"):FireServer(unpack(args))
 end
 
+-- FUnction to auto collect dropped items
 
+-- Auto summon eggs
+
+-- Auto upgrade items
 
 -- Check item amount // returns amount
 -- function checkItemCount(item)
