@@ -217,7 +217,7 @@ function goTo(pos)
  end
 
 -- Auto Sell Function
-function autoSell()
+function autoSell() 
     wait(0.5)
     local capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value -- Value used to check whether backpack is full or not
 
@@ -229,6 +229,11 @@ function autoSell()
             [1] = "ToggleHoneyMaking"
         }
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlayerHiveCommand"):FireServer(unpack(args))
+
+        repeat
+            capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value
+        until capacity <= 0
+
         wait(5)
     end
 end
