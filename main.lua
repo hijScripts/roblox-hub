@@ -231,6 +231,7 @@ function autoSell()
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlayerHiveCommand"):FireServer(unpack(args))
 
         repeat
+            wait(1)
             capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value
         until capacity <= 0
 
