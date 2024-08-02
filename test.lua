@@ -29,9 +29,17 @@ local menuOptions = menu.Children:GetChildren()
 
 -- Function to move character to given position
 function goTo(pos)
+    print("Starting goTo function with position:", pos)
+
     local path = pathFinding:CreatePath() -- path to desired position
-    local success = path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
+    if not path then
+        print("Failed to create path.")
+        return
+    end
     
+    print("Computing path from:", humanoidRoot.Position, "to:", pos)
+    path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
+
     local waypoints = path:GetWaypoints() -- getting all waypoints of path
 
     local guideBallTable = {}
@@ -50,13 +58,15 @@ function goTo(pos)
         part.Parent = workspace
 
         table.insert(guideBallTable, part) -- adding to table so i can destroy at end of script
-
+    end
+    
+    for index, waypoint in pairs(waypoints) do
         if waypoint.Action == Enum.PathWaypointAction.Jump then -- Detecting if character needs to jump
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping) -- Making character jump
         end
         
         humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait(0.01)
+        humanoid.MoveToFinished:Wait(1)
     end
 
     for index, guideBall in pairs(guideBallTable) do -- destroying all balls made
@@ -66,12 +76,20 @@ end
 
 print("goTo function loaded")
 
+-- Check capacity of backpack
+function backpackFull()
+    if player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value >= 1 then
+        return true
+    end
+
+    return false
+end
+
 -- Auto Sell Function
 function autoSell() 
     wait(0.5)
-    local capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value -- Value used to check whether backpack is full or not
 
-    if capacity >= 1 then -- Backpack capacity check
+    if backpackFull() then -- Backpack capacity check
         wait(0.1)
         goTo(player.SpawnPos.Value.Position)
         wait(0.1)
@@ -80,12 +98,11 @@ function autoSell()
         }
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlayerHiveCommand"):FireServer(unpack(args))
 
-        repeat
+        repeat -- this repeat segment prevents AI from moving back to field POS before backpack empty.
             wait(1)
-            capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value
-        until capacity <= 0
+        until not backpackFull() 
 
-        wait(5)
+        wait(5) -- Getting last drops of pollen out
     end
 end
 
@@ -138,7 +155,7 @@ function taskFinder()
 
         -- 4. Categorize each task
         for index, task in pairs(taskList) do
-            if task.Name ~= "TitleBar" then -- Ignore the title bar
+            if task.Name ~= "TitleBar" and task.Name ~= "TitleBarBG" and task.Name ~= "TextLabel" then -- Ignore the title bar
                 local desc = task.Description.ContentText -- Get the description
 
                 -- Handle different task types
@@ -201,7 +218,7 @@ function autoQuest()
         local questTasks = quest:GetChildren() -- List of all tasks for related quest
 
         for index, task in questTasks do
-            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" then
+            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
                 table.insert(taskList, task) -- Adding each individual task to list
             end
         end
@@ -216,17 +233,17 @@ function autoQuest()
             if string.find(fieldTask, field.Name:match("^([%w]+)")) then
                 print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
                 for index, task in pairs(taskList) do
-                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" then
+                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
                         if string.find(task.Description.ContentText, field.Name) then
                             print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
                             if not checkIfCompleted(task) then
-                                goTo(field.Position)
+                                goTo(field.CFrame.Position)
                                 repeat
                                     wait(0.1)
                                     autoFarm()
                                     wait(0.1)
                                     autoSell()
-                                    if humanoidRoot.Position ~= field.Position then goTo(field.Position) end -- triggers when selling Pollen
+                                    if humanoidRoot.Position ~= field.CFrame.Position then goTo(field.Position) end -- triggers when selling Pollen
                                 until checkIfCompleted(task)
                             end
                         end

@@ -17,6 +17,7 @@ local Window = Fluent:CreateWindow({
 -- Creating Tabs
 local Tabs = {
     mainTab = Window:AddTab({ Title = "Main", Icon = "" }),
+    autoFarmTab = Window:AddTab({ Title = "AutoFarm", Icon = "" }),
     teleportTab = Window:AddTab({ Title = "Teleports", Icon = "" })
 }
 
@@ -60,61 +61,18 @@ function getFrame(name)
     end
 end
 
--- Analyse desc of task
-function analyseDesc(desc)
-    local descTable = {} -- Table to return values
-    local wordsList = {} -- Variable to store words in sentence to access previous words
-
-    for word in string.gmatch(desc, "%a+") do
-        table.insert(wordsList, word)
-
-        if word == "Collect" then
-            table.insert(descTable, "Pollen")
-        end
-
-        if word == "Field" or word == "Patch" or word == "Forest" then
-            table.insert(descTable, wordsList[#wordsList - 1] .. " " .. word)
-
-            return descTable
-        end
-    end
-
-    return nil
-end
-
--- Function to get position of a field
-function getFieldPos(fieldName)
-    for index, field in pairs(fields) do
-        if field.Name == fieldName then
-            return field.Position
-        end
-    end
-end
-
--- Complete a task
-function completeTask(item, field)
-    local fieldPos = getFieldPos(field) -- Position to move character to
-
-    goTo(fieldPos)
-
-    local i = 0 -- test vari
-    while i<10 do
-        wait(0.5)
-        autoFarm()
-        i = i + 1
-    end
-
-    print(field .. " Has been farmed.")
-
-end
-
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
+    require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
 end
 
--- Auto Quest
-function autoQuest()
+-- Return all tasks organized into categories
+function taskFinder()
+    
+    -- Tables for categorized tasks
+    local mobQuests = {}
+    local fieldQuests = {}
+    local foodQuests = {}
 
     -- 1. Get the quest frame
     local questFrame = getFrame("Quests")
@@ -122,23 +80,199 @@ function autoQuest()
     -- 2. Get list of all quests
     local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
 
-    --3. Get all tasks for a quest
+    -- 3. Get all tasks for each quest
     for index, quest in pairs(questList) do
         local taskList = quest:GetChildren()
 
-        -- 4. Check completion status
+        -- 4. Categorize each task
         for index, task in pairs(taskList) do
-            local tempTask = task
-            if tempTask.Name ~= "TitleBar" then -- name of quest irrelevant
-                if #tempTask.FillBar:GetChildren() <= 0 then -- Comparing length of list. Completed tasks have length > 0
-                    local desc = tempTask.Description.ContentText -- Description of task
-                    
-                    if analyseDesc(desc) ~= nil then
-                        local args = analyseDesc(desc)
-                        local item = args[1]
-                        local field = args[2]
-                        if item ~= nil and field ~= nil then
-                            completeTask(item, field)
+            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then -- Ignore the title bar
+                local desc = task.Description.ContentText -- Get the description
+
+                -- Handle different task types
+                local quantity, itemType, field = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)%s*from the (%a+)")
+                if quantity and itemType and field then
+                    table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
+                else
+                    quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
+                    if quantity and itemType then
+                        table.insert(foodQuests, quantity .. " " .. itemType)
+                    else
+                        quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                        if quantity and itemType then
+                            table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- 5. Print the organized tasks
+    -- print("Field_Quest:")
+    -- for _, quest in pairs(field_Quests) do
+    --     print(" - " .. quest)
+    -- end
+
+    -- print("Food_Quest:")
+    -- for _, quest in pairs(food_Quests) do
+    --     print(" - " .. quest)
+    -- end
+
+    -- print("Mob_Quest:")
+    -- for _, quest in pairs(mob_Quests) do
+    --     print(" - " .. quest)
+    -- end
+
+    return mobQuests, fieldQuests, foodQuests 
+end
+
+-- Checking status of a quest
+function checkIfCompleted(task)
+    if #task.FillBar:GetChildren() >= 1 then
+        return true
+    end
+
+    return false
+end
+
+-- Auto Quest
+function autoQuest()
+
+    -- Quest Frame & List of all Questse
+    local questFrame = getFrame("Quests")
+    local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
+
+    for index, quest in questList do -- Deleting any empty messages from quest list
+        if quest.Name == "EmptyMessage" then
+            table.remove(questList, index)
+        end
+    end
+
+    local taskList = {} -- List to hold all task instances
+
+    for index, quest in pairs(questList) do
+        local questTasks = quest:GetChildren() -- List of all tasks for related quest
+
+        for index, task in questTasks do
+            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
+                table.insert(taskList, task) -- Adding each individual task to list
+            end
+        end
+    end
+
+    -- 1. Get the tasks required
+    local mobTasks, fieldTasks, foodQuests = taskFinder()
+
+    -- 2. Complete field tasks
+    for index, fieldTask in pairs(fieldTasks) do
+        for index, field in pairs(fields) do
+            if string.find(fieldTask, field.Name:match("^([%w]+)")) then
+                print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
+                for index, task in pairs(taskList) do
+                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
+                        if string.find(task.Description.ContentText, field.Name) then
+                            print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
+                            if not checkIfCompleted(task) then
+                                print("going to field")
+                                goTo(field.Position)
+                                repeat
+                                    wait(0.1)
+                                    autoFarm()
+                                    wait(0.1)
+                                    if Options.autoSellToggle.Value == true then 
+                                        autoSell() 
+                                        goTo(field.Position)
+                                    end
+                                until checkIfCompleted(task)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- local i = 1
+    -- print("** Mob Tasks **")
+        
+    -- for index, task in mobTasks do
+    --     print("Task " .. i .. ": " .. task)
+    --     i = i + 1
+    -- end
+
+    -- local i = 1
+    -- print("** Field Tasks **")
+
+    -- for index, task in fieldTasks do
+    --     print("Task " .. i .. ": " .. task)
+    --     i = i + 1
+    -- end
+
+    -- local i = 1
+    -- print("** Food Tasks **")
+
+    -- for index, task in foodQuests do
+    --     print("Task " .. i .. ": " .. task)
+    --     i = i + 1
+    -- end
+
+end
+
+-- Auto Holiday Quest Function
+function claimQuest(npc)
+
+    local questNum = 0 -- number to iterate with
+    while questNum <= 20 do
+        wait(0.1)
+        print("Attempting to claim Quest Number: " .. questNum)
+        local args = {
+            [1] = npc,
+            [2] = questNum, -- brute forcing quest number
+            [3] = "Completed"
+        }
+
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GiveQuest"):FireServer(unpack(args))
+
+        questNum = questNum + 1
+    end
+end
+
+-- Check all quest status
+function getQuestStatus()
+    local questFrame = getFrame("Quests")
+    local quests = questFrame.Content:FindFirstChild("Frame"):GetChildren()
+    
+
+    for index, quest in pairs(quests) do -- Going through each quest and checking task individually
+        if quest.Name == "QuestBox" then
+            local tasks = {} -- table to go over tasks in each quest
+
+            for index, task in quest:GetChildren() do -- loop to get rid of unnecessary children
+                if task.Name == "TaskBar" then
+                    table.insert(tasks, task)
+                end
+            end
+
+            local i = 0 -- number of completed tasks
+            local numOfTasks = #tasks
+
+
+            for index, task in pairs(tasks) do 
+                if task.Name == "TaskBar" then -- getting rid of non-task children
+                    if #task.FillBar:GetChildren() >= 1 then -- if length found, task is complete
+                        i = i + 1
+                    end
+                end
+            end
+
+            if i == numOfTasks then
+                for index, npc in pairs(npcs) do
+                    if npc.Name ~= "Honey Bee" then
+                        if tasks[1].Description.ContentText:match(npc.Name) then
+                            print("Claiming quest for " .. npc.Name)
+                            goTo(npc.Platform.Position)
+                            claimQuest(npc.Name)
                         end
                     end
                 end
@@ -147,81 +281,91 @@ function autoQuest()
     end
 end
 
--- Auto Holiday Quest Function
-function autoHolidayQuest()
-    local npcList = populateList(npcs) -- List of NPCs
-    local updatedNpcList = {} -- List to store the name of each npc with no spaces
-
-    for index, npc in pairs(npcList) do
-        local name = npc -- name of selected npc
-        local tempName = "" -- temp name used to append to list, resets for every npc
-
-        for word in string.gmatch(name, "[^%s]+") do -- removing blank spaces from the name
-            tempName = tempName .. word
-        end
-
-        table.insert(updatedNpcList, tempName .. "Xmas24")
-    end
-
-    for index, npc in pairs(updatedNpcList) do -- Brute force accepting all Xmas 2024 quests
-        local args = {
-            [1] = npc
-        }
-
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GiveQuest"):FireServer(unpack(args))
-    end
-end
-
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToolCollect"):FireServer()
+    require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
 end
 
 -- Function to move character to given position
 function goTo(pos)
+    print("Starting goTo function with position:", pos)
+
+    for index, item in pairs(game.workspace:GetDescendants()) do
+        if item:IsA("BasePart") and item.CollisionGroup == "BoostBallBarrier" then
+            item.CanCollide = false
+        end
+    end
+
     local path = pathFinding:CreatePath() -- path to desired position
+
+    if not path then
+        print("Failed to create path.")
+        return
+    end
+
+    print("Computing path from:", humanoidRoot.Position, "to:", pos)
     path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
- 
+
+    if path.Status ~= Enum.PathStatus.Success then
+        print("Path computation failed with status:", path.Status)
+        return
+    end
+
     local waypoints = path:GetWaypoints() -- getting all waypoints of path
-    
+    if #waypoints == 0 then
+        print("No waypoints found.")
+        return
+    end
+
     local guideBallTable = {}
  
     for index, waypoint in pairs(waypoints) do -- creating guide balls to visualise path being calculated
-       wait(0.01)
-       local part = Instance.new("Part")
-       part.Name = "GuideBall"
-       part.Shape = "Ball"
-       part.Color = Color3.fromRGB(255,0,0)
-       part.Material = "Neon"
-       part.Size = Vector3.new(0.6, 0.6, 0.6)
-       part.Position = waypoint.Position + Vector3.new(0,5,0)
-       part.Anchored = true
-       part.CanCollide = false
-       part.Parent = workspace
- 
-       table.insert(guideBallTable, part) -- adding to table so i can destroy at end of script
+        wait(0.01)
+        local part = Instance.new("Part")
+        part.Name = "GuideBall"
+        part.Shape = "Ball"
+        part.Color = Color3.fromRGB(255,0,0)
+        part.Material = "Neon"
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Position = waypoint.Position + Vector3.new(0,5,0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+
+        table.insert(guideBallTable, part) -- adding to table so i can destroy at end of script
     end
- 
+    
     for index, waypoint in pairs(waypoints) do
-       if waypoint.Action == Enum.PathWaypointAction.Jump then -- Detecting if character needs to jump
-          humanoid:ChangeState(Enum.HumanoidStateType.Jumping) -- Making character jump
-       end
- 
-       humanoid:MoveTo(waypoint.Position)
-       humanoid.MoveToFinished:Wait(1)
+        if waypoint.Action == Enum.PathWaypointAction.Jump then -- Detecting if character needs to jump
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping) -- Making character jump
+        end
+        
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait(0.001)
     end
- 
+
     for index, guideBall in pairs(guideBallTable) do -- destroying all balls made
        guideBall:Destroy()
     end
- end
+
+    wait(1)
+end
+
+-- Check capacity of backpack
+function backpackFull()
+    if player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value >= 1 then
+        return true
+    end
+
+    return false
+end
 
 -- Auto Sell Function
 function autoSell() 
-    wait(0.5)
-    local capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value -- Value used to check whether backpack is full or not
 
-    if capacity >= 1 then -- Backpack capacity check
+    wait(1) -- gives time for humanoid to get onto platform
+
+    if backpackFull() then -- Backpack capacity check
         wait(0.1)
         goTo(player.SpawnPos.Value.Position)
         wait(0.1)
@@ -230,12 +374,11 @@ function autoSell()
         }
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlayerHiveCommand"):FireServer(unpack(args))
 
-        repeat
+        repeat -- this repeat segment prevents AI from moving back to field POS before backpack empty.
             wait(1)
-            capacity = player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value
-        until capacity <= 0
+        until player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value <= 0
 
-        wait(5)
+        wait(5) -- Getting last drops of pollen out
     end
 end
 
@@ -255,13 +398,13 @@ function claimHive()
     for hiveID=1, #hives do
         local args = {
             [1] = hiveID
-        }
+        }    
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ClaimHive"):FireServer(unpack(args))
     end
 end
 
 -- Check if hive exists
-function checkHives()
+function checkOwnsHive()
     for index, hive in pairs(hives) do
         if hive.Owner.Value == player.DisplayName then
             return true
@@ -269,25 +412,6 @@ function checkHives()
             return false
         end 
     end
-end
-
--- Catch users death to toggle off all cheats
--- function catchDeath()
---     print("You have died!")
---     for toggle in toggleList do 
---         local toggleFunc = toggleList[toggle] -- storing function into a variable so i can toggle off
-
---         toggleFunc:SetValue(false) -- Turning off all toggles off
---     end
--- end
-
--- Redeem Code Function
-function redeemCode(code)
-    local args = {
-        [1] = code
-    }
-    
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromoCodeEvent"):FireServer(unpack(args))
 end
 
 -- Function to auto collect dropped items
@@ -317,29 +441,91 @@ do
         Duration = 5 -- Set to nil to make the notification not disappear
     })
 
+    -- Auto Farm Tab --
+
+    -- Enable auto farm toggle
+    local autoFarmToggle = Tabs.autoFarmTab:AddToggle("farmToggle", {Title = "Enabled", Default = false})
+
+    -- Select field dropdown
+    local fieldDropdown = Tabs.autoFarmTab:AddDropdown("fieldTP", {
+        Title = "Select Field",
+        Values = populateList(fields),
+        Multi = false,
+        Default = 1
+    })
+
+    -- Auto Sell Toggle
+    local sellToggle = Tabs.autoFarmTab:AddToggle("autoSellToggle", {Title = "Auto Sell", Default = false})
+
+    -- Auto Quest Toggle
+    local questToggle = Tabs.autoFarmTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
+
+    -- Auto Claim Quest Toggle
+    local claimToggle = Tabs.autoFarmTab:AddToggle("autoClaimToggle", {Title = "Auto Claim Quest [BETA]", Default = false})
+
+    -- Auto Farm script
+    autoFarmToggle:OnChanged(function()
+        if Options.farmToggle.Value == true then 
+            print("Auto Farm Toggled On") 
+        else
+            print("Auto Farm Toggled Off")
+        end
+    end)
+
+    -- field selection script
+    fieldDropdown:OnChanged(function(value)
+        print("Selected: " .. value)
+        if Options.farmToggle.Value == true then
+            for index, field in pairs(fields) do
+                if field.Name == value then
+                    wait(0.1)
+                    goTo(field.Position)
+                    repeat
+                        wait(0.1)
+                        autoFarm() -- farms with animation
+                        wait(0.1)
+                        if Options.autoSellToggle.Value == true then autoSell() end
+                        if math.floor(humanoidRoot.Position.Z) ~= math.floor(field.Position.Z) then goTo(field.Position) end
+                    until Options.farmToggle.Value == false
+                end
+            end
+            
+        end
+    end)
+
+    -- Auto sell script
+    sellToggle:OnChanged(function()
+        if Options.autoSellToggle.Value == true then
+            if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
+        end
+    end)
+
+    -- Auto quest script
+    questToggle:OnChanged(function()
+        if Options.autoQuestToggle.Value == true then
+            if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
+            repeat
+                autoQuest()
+            until Options.autoQuestToggle.Value == false
+        end
+    end)
+
+    -- Auto sell script
+    claimToggle:OnChanged(function()
+        if Options.autoClaimToggle.Value == true then
+            repeat
+                wait(0.1)
+                getQuestStatus()
+            until Options.autoClaimToggle.Value == false
+        end
+    end)
+
     -- Claim Hive Button
     Tabs.mainTab:AddButton({
         Title = "Claim Hive",
         Description = "Claims an empty hive",
         Callback = function()
-            Window:Dialog({
-                Title = "Claim a hive?",
-                Content = "",
-                Buttons = {
-                    {
-                        Title = "Confirm",
-                        Callback = function()
-                            if not checkHives() then claimHive() end
-                        end
-                    },
-                    {
-                        Title = "Cancel",
-                        Callback = function()
-                            print("Cancelled the dialog.")
-                        end
-                    }
-                }
-            })
+            if not checkOwnsHive() then claimHive() end
         end
     })
 
@@ -348,147 +534,19 @@ do
         Title = "Go to Hive",
         Description = "Takes you to your hive",
         Callback = function()
-            Window:Dialog({
-                Title = "Are you sure?",
-                Content = "Did you mean to go back to your hive?",
-                Buttons = {
-                    {
-                        Title = "Confirm",
-                        Callback = function()
-                            if player.Honeycomb then
-                                goTo(player.SpawnPos.Value.Position)
-                            end
-                        end
-                    },
-                    {
-                        Title = "Cancel",
-                        Callback = function()
-                            print("Cancelled the dialog.")
-                        end
-                    }
-                }
-            })
+            goTo(player.SpawnPos.Value.Position)
         end
     })
+
+    -- Test
     Tabs.mainTab:AddButton({
-        Title = "Redeem All Codes",
-        Description = "Redeems all Active Codes",
+        Title = "Test Farm",
+        Description = "test",
         Callback = function()
-            Window:Dialog({
-                Title = "Are you sure?",
-                Content = "Do you want to redeem all your codes",
-                Buttons = {
-                    {
-                        Title = "Confirm",
-                        Callback = function()
-                            for code in codes do
-                                wait(0.1)
-                                redeemCode(code)
-                            end
-                        end
-                    },
-                    {
-                        Title = "Cancel",
-                        Callback = function()
-                            print("Cancelled the dialog.")
-                        end
-                    }
-                }
-            })
+            require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
         end
     })
-    -- Auto Farm Toggle
-    local farmToggle = Tabs.mainTab:AddToggle("autoFarmToggle", {Title = "Auto Farm", Default = false})
-    table.insert(toggleList, Options.autoFarmToggle)
-
-    farmToggle:OnChanged(function()
-        if Options.autoFarmToggle.Value == true then
-            repeat
-                wait(0.5)
-                --if character:FindFirstChild("Humanoid").Health <= 0 then catchDeath() end -- catch death
-                autoFarm()
-            until Options.autoFarmToggle.Value == false
-        end
-    end)
-
-    -- Auto Sell Toggle
-    local sellToggle = Tabs.mainTab:AddToggle("autoSellToggle", {Title = "Auto Sell", Default = false})
-    table.insert(toggleList, Options.autoSellToggle)
-
-    sellToggle:OnChanged(function()
-        if Options.autoSellToggle.Value == true then
-            if not checkHives() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
-            repeat
-                wait(0.5)
-                --if humanoid.Health <= 0 then catchDeath() end -- catch death
-                autoSell()
-            until Options.autoSellToggle.Value == false
-        end
-    end)
-
-    -- Auto Xmas Quests
-    Tabs.mainTab:AddButton({
-        Title = "Auto Accept Xmas Quests",
-        Description = "Accepts all available Xmas Quests",
-        Callback = function()
-            Window:Dialog({
-                Title = "Are you sure?",
-                Content = "Would you like to accept all Xmas Quests?",
-                Buttons = {
-                    {
-                        Title = "Confirm",
-                        Callback = function()
-                            --if humanoid and humanoid.Health >= 0 then -- Checking to ensure user is alive to avoid breaking
-                                autoHolidayQuest()
-                            end
-                        --end
-                    },
-                    {
-                        Title = "Cancel",
-                        Callback = function()
-                            print("Cancelled the dialog.")
-                        end
-                    }
-                }
-            })
-            
-        end
-    })
-
-    -- Flower Zones TP
-    local zoneDropdown = Tabs.teleportTab:AddDropdown("zoneTP", {
-        Title = "Flower Zones TP",
-        Values = populateList(fields),
-        Multi = false,
-        Default = 1
-    })
-
-    zoneDropdown:OnChanged(function(value)
-        for index, field in pairs(fields) do
-            if field.Name == value then
-                goTo(field.Position)
-            end
-        end
-    end)
-
-    -- NPC TP
-    local npcDropdown = Tabs.teleportTab:AddDropdown("npcTP", {
-        Title = "NPC TP",
-        Values = populateList(npcs),
-        Multi = false,
-        Default = 1
-    })
-
-    npcDropdown:OnChanged(function(value)
-        for index, npc in pairs(npcs) do
-            if npc.Name == value then
-                goTo(npc.Circle.Position)
-            end
-        end
-    end)
 end
-
-
 -- Update quests
 -- local args = {
 --     [1] = "Bee Bear 6",
@@ -505,9 +563,9 @@ end
 -- }
 
 -- local args = {
---     [1] = "Black Bear",
---     [2] = 6,
---     [3] = "Ongoing"
+--     [1] = "Sun Bear",
+--     [2] = 1,
+--     [3] = "Finish"
 -- }
 
 -- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("UpdatePlayerNPCState"):FireServer(unpack(args))
