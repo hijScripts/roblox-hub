@@ -31,8 +31,11 @@ local humanoid = character:FindFirstChild("Humanoid")
 local humanoidRoot = character:WaitForChild("HumanoidRootPart")
 local virtualUser = game:GetService("VirtualUser")
 
--- Pathfinding Variables
-local pathFinding = game:GetService("PathfindingService")
+-- Path Variables
+local PathfindingService = game:GetService("PathfindingService")
+local MAX_RETRIES = 5
+local RETRY_COOLDOWN = 5
+local YIELDING = false
 
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
@@ -185,9 +188,9 @@ function autoQuest()
                                 print("going to field")
                                 goTo(field.Position)
                                 repeat
-                                    wait(0.1)
+                                    task.wait(0.1)
                                     autoFarm()
-                                    wait(0.1)
+                                    task.wait(0.1)
                                     if Options.autoSellToggle.Value == true then 
                                         autoSell() 
                                         goTo(field.Position)
@@ -232,7 +235,7 @@ function claimQuest(npc)
 
     local questNum = 0 -- number to iterate with
     while questNum <= 20 do
-        wait(0.1)
+        task.wait(0.1)
         print("Attempting to claim Quest Number: " .. questNum)
         local args = {
             [1] = npc,
@@ -289,81 +292,71 @@ function getQuestStatus()
     end
 end
 
--- Function to pickup loot
-function goToCollectible(pos)
-    local path = pathFinding:CreatePath() -- path to desired position
-    path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
-    local waypoints = path:GetWaypoints() -- getting all waypoints of path
-
-    for index, waypoint in pairs(waypoints) do
-        humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait(0.001)
-    end
-end
-
 -- Function to move character to given position
-function goTo(pos)
-    print("Starting goTo function with position:", pos)
+function goTo(targetPos)
+    local path = PathfindingService:CreatePath()
+    local reachedConnection
+    local pathBlockedConnection
 
-    for index, item in pairs(game.workspace:GetDescendants()) do
-        if item:IsA("BasePart") and item.CollisionGroup == "BoostBallBarrier" then
-            item.CanCollide = false
+    local RETRY_NUM = 0
+    local success, errorMessage
+
+    repeat
+        RETRY_NUM = RETRY_NUM + 1 
+        success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, targetPos)
+        if not success then -- if fails, warn console
+            warn("Pathfind compute path error: " .. errorMessage)
+            task.wait(RETRY_COOLDOWN)
         end
-    end
+    until success == true or RETRY_NUM > MAX_RETRIES
 
-    local path = pathFinding:CreatePath() -- path to desired position
+    if success then
+        if path.Status == Enum.PathStatus.Success then
+            local waypoints = path:GetWaypoints()
+            local currentWaypointIndex = 2 -- not 1, because 1 is the waypoint of the starting position
 
-    if not path then
-        print("Failed to create path.")
-        return
-    end
+            if not reachedConnection then
+                reachedConnection = humanoid.MoveToFinished:Connect(function(reached)
+                    if reached and currentWaypointIndex < #waypoints then
+                        currentWaypointIndex = currentWaypointIndex + 1
 
-    print("Computing path from:", humanoidRoot.Position, "to:", pos)
-    path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
+                        humanoid:MoveTo(waypoints[currentWaypointIndex].Position)
+                        if waypoints[currentWaypointIndex].Action == Enum.PathWaypointAction.Jump then
+                            humanoid.Jump = true
+                        end
+                    else
+                        reachedConnection:Disconnect()
+                        pathBlockedConnection:Disconnect()
+                        reachedConnection = nil -- you need to manually set this to nil! because calling disconnect function does not make the variable to be nil.
+                        pathBlockedConnection = nil
+                    end
+                end)
+            end
 
-    if path.Status ~= Enum.PathStatus.Success then
-        print("Path computation failed with status:", path.Status)
-        return
-    end
+            pathBlockedConnection = path.Blocked:Connect(function(waypointNumber)
+                if waypointNumber > currentWaypointIndex then -- blocked path is ahead of the BoostBallBarrier
+                    reachedConnection:Disconnect()
+                    pathBlockedConnection:Disconnect()
+                    reachedConnection = nil
+                    pathBlockedConnection = nil
+                    goTo(player.SpawnPos.Value.Position, true) -- new path
+                end
+            end)
+            
+            humanoid:MoveTo(waypoints[currentWaypointIndex].Position) -- move to the nth waypoint
+            if waypoints[currentWaypointIndex].Action == Enum.PathWaypointAction.Jump then
+                humanoid.Jump = true
+            end
 
-    local waypoints = path:GetWaypoints() -- getting all waypoints of path
-    if #waypoints == 0 then
-        print("No waypoints found.")
-        return
-    end
-
-    local guideBallTable = {}
- 
-    for index, waypoint in pairs(waypoints) do -- creating guide balls to visualise path being calculated
-        wait(0.01)
-        local part = Instance.new("Part")
-        part.Name = "GuideBall"
-        part.Shape = "Ball"
-        part.Color = Color3.fromRGB(255,0,0)
-        part.Material = "Neon"
-        part.Size = Vector3.new(0.6, 0.6, 0.6)
-        part.Position = waypoint.Position + Vector3.new(0,5,0)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Parent = workspace
-
-        table.insert(guideBallTable, part) -- adding to table so i can destroy at end of script
-    end
-    
-    for index, waypoint in pairs(waypoints) do
-        if waypoint.Action == Enum.PathWaypointAction.Jump then -- Detecting if character needs to jump
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping) -- Making character jump
+        else -- if the path can't be computed between two points, do nothing!
+            return
         end
-        
-        humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait(0.001)
+    else -- this only runs IF the function has problems computing the path in its backend, NOT if a path can't be created between two points.
+        warn("Pathfind compute retry maxed out, error: " .. errorMessage)
+        return
     end
 
-    for index, guideBall in pairs(guideBallTable) do -- destroying all balls made
-       guideBall:Destroy()
-    end
-
-    wait(0.5)
+    task.wait(0.5)
 end
 
 -- Check capacity of backpack
@@ -380,16 +373,18 @@ function autoSell()
     if backpackFull() then -- Backpack capacity check
         local pos = humanoidRoot.Position
         goTo(player.SpawnPos.Value.Position)
+
+        task.wait(0.5)
         local args = {
             [1] = "ToggleHoneyMaking"
         }
         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PlayerHiveCommand"):FireServer(unpack(args))
 
         repeat -- this repeat segment prevents AI from moving back to field POS before backpack empty.
-            wait(1)
+            task.wait()
         until player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value <= 0
 
-        wait(5) -- Getting last drops of pollen out
+        task.wait(5) -- Getting last drops of pollen out
 
         goTo(pos) -- Returning to original position
     end
@@ -471,7 +466,7 @@ function collectLoot()
         for index, collectible in pairs(collectibles) do
             local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
             if mag <= 20 then
-                goToCollectible(collectible.Position)
+                goTo(collectible.Position)
             end
         end
     end
@@ -486,6 +481,30 @@ end
 -- auto use abilities
 
 -- auto under cloud
+function checkIfCloud()
+    local cloudFolder = workspace.Clouds
+    local clouds = cloudFolder:GetChildren()
+
+    if #clouds > 0 then
+        return true
+    end
+
+    return false
+end
+
+function followCloud()
+    local cloudFolder = workspace.Clouds
+    local clouds = cloudFolder:GetChildren()
+    local pos = humanoidRoot.Position
+
+    if #clouds > 0 then
+        for index, cloud in pairs(clouds) do
+            if ((pos - cloud.Root.Position).Magnitude) < 35 then
+                goTo(cloud.Root.Position)
+            end
+        end
+    end
+end
 
 -- auto claim badge
 
@@ -520,6 +539,9 @@ do
     -- Auto Pickup Loot Toggle
     local lootToggle = Tabs.autoFarmTab:AddToggle("autoLootToggle", {Title = "Auto Loot Pickup", Default = false})
 
+    -- Auto Follow Cloud Toggle
+    local cloudToggle = Tabs.autoFarmTab:AddToggle("autoFollowCloud", {Title = "Auto Follow Cloud", Default = false})
+
     -- Auto Quest Toggle
     local questToggle = Tabs.autoFarmTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
 
@@ -531,16 +553,21 @@ do
         if Options.farmToggle.Value == true then
             fieldDropdown:SetValue(fieldDropdown.Value) 
             repeat
-                wait(0.1)
+                task.wait(0.1)
                 local pos = humanoidRoot.Position
 
-                if checkForMonster() then print("Mob nearby!") repeat wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+                if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
                 if Options.autoLootToggle.Value == true then collectLoot() end -- checking for nearby loot
                 if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
                 
+                task.wait(0.1)
+                if checkIfCloud then followCloud() end
+
+                task.wait(0.1)
                 if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 5 then -- detects if users get stuck
                     for index, field in pairs(fields) do 
                         if field.Name == fieldDropdown.Value then
+                            print("Returning user to " .. field.Name)
                             goTo(field.Position)
                         end
                     end
@@ -557,7 +584,7 @@ do
         if Options.farmToggle.Value == true then
             for index, field in pairs(fields) do
                 if field.Name == value then
-                    wait(0.1)
+                    task.wait(0.1)
                     goTo(field.Position)
                 end
             end
@@ -569,7 +596,7 @@ do
         if Options.autoSwingToggle.Value == true and Options.farmToggle.Value == true then
             print("Auto swing toggled on.")
             repeat
-                wait(0.1)
+                task.wait(0.1)
                 autoFarm()
             until Options.autoSwingToggle.Value == false or Options.farmToggle.Value == false
         else
@@ -601,7 +628,7 @@ do
     claimToggle:OnChanged(function()
         if Options.autoClaimToggle.Value == true then
             repeat
-                wait(0.1)
+                task.wait(0.1)
                 getQuestStatus()
             until Options.autoClaimToggle.Value == false
         end
@@ -613,6 +640,15 @@ do
             print("Auto pickup loot toggled on.")
         else
             print("Auto pickup loot toggled off.")
+        end
+    end)
+
+    -- Auto pickup loot script
+    cloudToggle:OnChanged(function()
+        if Options.autoFollowCloud.Value == true then
+            print("Auto follow cloud toggled on.")
+        else
+            print("Auto follow cloud toggled off.")
         end
     end)
 
