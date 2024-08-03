@@ -188,9 +188,9 @@ function autoQuest()
                                 print("going to field")
                                 goTo(field.Position)
                                 repeat
-                                    task.wait(0.1)
+                                    task.wait()
                                     autoFarm()
-                                    task.wait(0.1)
+                                    task.wait()
                                     if Options.autoSellToggle.Value == true then 
                                         autoSell() 
                                         goTo(field.Position)
@@ -235,7 +235,7 @@ function claimQuest(npc)
 
     local questNum = 0 -- number to iterate with
     while questNum <= 20 do
-        task.wait(0.1)
+        task.wait()
         print("Attempting to claim Quest Number: " .. questNum)
         local args = {
             [1] = npc,
@@ -294,6 +294,12 @@ end
 
 -- Function to move character to given position
 function goTo(targetPos)
+    for index, ballBarrier in pairs(game.workspace:GetDescendants()) do
+        if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
+            ballBarrier.CanCollide = false
+        end
+    end
+
     local path = PathfindingService:CreatePath()
     local reachedConnection
     local pathBlockedConnection
@@ -305,7 +311,7 @@ function goTo(targetPos)
         RETRY_NUM = RETRY_NUM + 1 
         success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, targetPos)
         if not success then -- if fails, warn console
-            warn("Pathfind compute path error: " .. errorMessage)
+            print("Pathfind compute path error: " .. errorMessage)
             task.wait(RETRY_COOLDOWN)
         end
     until success == true or RETRY_NUM > MAX_RETRIES
@@ -327,7 +333,7 @@ function goTo(targetPos)
                     else
                         reachedConnection:Disconnect()
                         pathBlockedConnection:Disconnect()
-                        reachedConnection = nil -- you need to manually set this to nil! because calling disconnect function does not make the variable to be nil.
+                        reachedConnection = nil -- you need to manually set this to nil because calling disconnect function does not make the variable to be nil.
                         pathBlockedConnection = nil
                     end
                 end)
@@ -339,7 +345,7 @@ function goTo(targetPos)
                     pathBlockedConnection:Disconnect()
                     reachedConnection = nil
                     pathBlockedConnection = nil
-                    goTo(player.SpawnPos.Value.Position, true) -- new path
+                    goTo(targetPos) -- new path
                 end
             end)
             
@@ -352,11 +358,13 @@ function goTo(targetPos)
             return
         end
     else -- this only runs IF the function has problems computing the path in its backend, NOT if a path can't be created between two points.
-        warn("Pathfind compute retry maxed out, error: " .. errorMessage)
+        print("Pathfind compute retry maxed out, error: " .. errorMessage)
         return
     end
 
-    task.wait(0.5)
+    repeat
+        task.wait()
+    until (humanoidRoot.Position - targetPos).Magnitude <= 10
 end
 
 -- Check capacity of backpack
@@ -372,9 +380,9 @@ end
 function autoSell() 
     if backpackFull() then -- Backpack capacity check
         local pos = humanoidRoot.Position
+
         goTo(player.SpawnPos.Value.Position)
 
-        task.wait(0.5)
         local args = {
             [1] = "ToggleHoneyMaking"
         }
@@ -465,8 +473,9 @@ function collectLoot()
     if #collectibles > 0 then
         for index, collectible in pairs(collectibles) do
             local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
-            if mag <= 20 then
+            if mag <= 30 then
                 goTo(collectible.Position)
+                task.wait(0.5)
             end
         end
     end
@@ -480,29 +489,23 @@ end
 
 -- auto use abilities
 
--- auto under cloud
-function checkIfCloud()
-    local cloudFolder = workspace.Clouds
-    local clouds = cloudFolder:GetChildren()
-
-    if #clouds > 0 then
-        return true
-    end
-
-    return false
-end
-
+-- Function to follow clouds
 function followCloud()
     local cloudFolder = workspace.Clouds
     local clouds = cloudFolder:GetChildren()
     local pos = humanoidRoot.Position
+    local fieldClouds = {}
 
     if #clouds > 0 then
         for index, cloud in pairs(clouds) do
             if ((pos - cloud.Root.Position).Magnitude) < 50 then
-                goTo(cloud.Root.Position)
+                table.insert(fieldClouds, cloud)
             end
         end
+    end
+
+    if #fieldClouds > 0 then
+        goTo(fieldClouds[1].Root.Position)
     end
 end
 
@@ -553,17 +556,15 @@ do
         if Options.farmToggle.Value == true then
             fieldDropdown:SetValue(fieldDropdown.Value) 
             repeat
-                task.wait(0.1)
+                task.wait()
                 local pos = humanoidRoot.Position
 
                 if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
                 if Options.autoLootToggle.Value == true then collectLoot() end -- checking for nearby loot
                 if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
-                
-                task.wait(0.1)
-                if checkIfCloud then followCloud() end
+                if Options.autoFollowCloud.Value == true then followCloud() end -- following first cloud in field
 
-                task.wait(0.1)
+                task.wait()
                 if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 5 then -- detects if users get stuck
                     for index, field in pairs(fields) do 
                         if field.Name == fieldDropdown.Value then
@@ -584,7 +585,7 @@ do
         if Options.farmToggle.Value == true then
             for index, field in pairs(fields) do
                 if field.Name == value then
-                    task.wait(0.1)
+                    task.wait()
                     goTo(field.Position)
                 end
             end
@@ -596,7 +597,7 @@ do
         if Options.autoSwingToggle.Value == true and Options.farmToggle.Value == true then
             print("Auto swing toggled on.")
             repeat
-                task.wait(0.1)
+                task.wait()
                 autoFarm()
             until Options.autoSwingToggle.Value == false or Options.farmToggle.Value == false
         else
@@ -667,15 +668,6 @@ do
         Description = "Takes you to your hive",
         Callback = function()
             goTo(player.SpawnPos.Value.Position)
-        end
-    })
-
-    -- Test
-    Tabs.mainTab:AddButton({
-        Title = "Test Farm",
-        Description = "test",
-        Callback = function()
-            require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
         end
     })
 end
