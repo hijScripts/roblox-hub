@@ -499,7 +499,7 @@ function followCloud()
 
     if #clouds > 0 then
         for index, cloud in pairs(clouds) do
-            if ((pos - cloud.Root.Position).Magnitude) < 35 then
+            if ((pos - cloud.Root.Position).Magnitude) < 50 then
                 goTo(cloud.Root.Position)
             end
         end
