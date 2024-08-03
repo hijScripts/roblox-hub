@@ -383,6 +383,8 @@ function autoSell()
 
         goTo(player.SpawnPos.Value.Position)
 
+        task.wait(3)
+
         local args = {
             [1] = "ToggleHoneyMaking"
         }
