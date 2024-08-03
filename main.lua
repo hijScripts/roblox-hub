@@ -29,6 +29,7 @@ local player = game:GetService("Players").LocalPlayer
 local character = player.Character
 local humanoid = character:FindFirstChild("Humanoid")
 local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+local virtualUser = game:GetService("VirtualUser")
 
 -- Pathfinding Variables
 local pathFinding = game:GetService("PathfindingService")
@@ -52,6 +53,11 @@ local toggleList = {}
 local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
 local menuOptions = menu.Children:GetChildren()
 
+-- Anti AFK
+player.Idled:connect(function()
+virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
+end)
+
 -- Get Selected Menu frame
 function getFrame(name)
     for index, option in pairs(menuOptions) do
@@ -63,7 +69,9 @@ end
 
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
-    require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
+    if checkIfField() then
+        require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
+   end
 end
 
 -- Return all tasks organized into categories
@@ -281,9 +289,16 @@ function getQuestStatus()
     end
 end
 
--- Auto Farm Function
-function autoFarm() -- weapon cd maybe? 
-    require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
+-- Function to pickup loot
+function goToCollectible(pos)
+    local path = pathFinding:CreatePath() -- path to desired position
+    path:ComputeAsync(humanoidRoot.Position, pos) -- computing path to position
+    local waypoints = path:GetWaypoints() -- getting all waypoints of path
+
+    for index, waypoint in pairs(waypoints) do
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait(0.001)
+    end
 end
 
 -- Function to move character to given position
@@ -348,7 +363,7 @@ function goTo(pos)
        guideBall:Destroy()
     end
 
-    wait(1)
+    wait(0.5)
 end
 
 -- Check capacity of backpack
@@ -362,13 +377,9 @@ end
 
 -- Auto Sell Function
 function autoSell() 
-
-    wait(1) -- gives time for humanoid to get onto platform
-
     if backpackFull() then -- Backpack capacity check
-        wait(0.1)
+        local pos = humanoidRoot.Position
         goTo(player.SpawnPos.Value.Position)
-        wait(0.1)
         local args = {
             [1] = "ToggleHoneyMaking"
         }
@@ -379,6 +390,8 @@ function autoSell()
         until player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value <= 0
 
         wait(5) -- Getting last drops of pollen out
+
+        goTo(pos) -- Returning to original position
     end
 end
 
@@ -414,17 +427,61 @@ function checkOwnsHive()
     end
 end
 
+-- Checks if in field
+function checkIfField()
+    for index, field in pairs(fields) do
+        local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
+        if mag <= 45 then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Checks for nearby monster
+function checkForMonster()
+    -- Variable for mobs
+    local mobFolder = workspace.Monsters
+    local mobs = mobFolder:GetChildren()
+
+    if #mobs > 0 then -- Making sure there are mobs
+        for index, mob in mobs do
+            if mob:FindFirstChild("HumanoidRootPart") then
+                local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
+                if mag <= 35 then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+-- Function to check for collectibles
+
+-- Auto collect loot
+function collectLoot()
+    local collectiblesFolder = workspace.Collectibles
+    local collectibles = collectiblesFolder:GetChildren()
+    local pos = humanoidRoot.Position
+
+    if #collectibles > 0 then
+        for index, collectible in pairs(collectibles) do
+            local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
+            if mag <= 20 then
+                goToCollectible(collectible.Position)
+            end
+        end
+    end
+end
+
 -- Function to auto collect dropped items
 
 -- Auto summon eggs
 
--- Auto upgrade items
-
--- auto jump when enemy near
-
 -- shop TPs
-
--- collect token spawns
 
 -- auto use abilities
 
@@ -454,8 +511,14 @@ do
         Default = 1
     })
 
+    -- Auto Swing Toggle
+    local swingToggle = Tabs.autoFarmTab:AddToggle("autoSwingToggle", {Title = "Auto Swing", Default = false})
+
     -- Auto Sell Toggle
     local sellToggle = Tabs.autoFarmTab:AddToggle("autoSellToggle", {Title = "Auto Sell", Default = false})
+
+    -- Auto Pickup Loot Toggle
+    local lootToggle = Tabs.autoFarmTab:AddToggle("autoLootToggle", {Title = "Auto Loot Pickup", Default = false})
 
     -- Auto Quest Toggle
     local questToggle = Tabs.autoFarmTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
@@ -465,8 +528,24 @@ do
 
     -- Auto Farm script
     autoFarmToggle:OnChanged(function()
-        if Options.farmToggle.Value == true then 
-            print("Auto Farm Toggled On") 
+        if Options.farmToggle.Value == true then
+            fieldDropdown:SetValue(fieldDropdown.Value) 
+            repeat
+                wait(0.1)
+                local pos = humanoidRoot.Position
+
+                if checkForMonster() then print("Mob nearby!") repeat wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+                if Options.autoLootToggle.Value == true then collectLoot() end -- checking for nearby loot
+                if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
+                
+                if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 5 then -- detects if users get stuck
+                    for index, field in pairs(fields) do 
+                        if field.Name == fieldDropdown.Value then
+                            goTo(field.Position)
+                        end
+                    end
+                end
+            until Options.farmToggle.Value == false
         else
             print("Auto Farm Toggled Off")
         end
@@ -480,23 +559,31 @@ do
                 if field.Name == value then
                     wait(0.1)
                     goTo(field.Position)
-                    repeat
-                        wait(0.1)
-                        autoFarm() -- farms with animation
-                        wait(0.1)
-                        if Options.autoSellToggle.Value == true then autoSell() end
-                        if math.floor(humanoidRoot.Position.Z) ~= math.floor(field.Position.Z) then goTo(field.Position) end
-                    until Options.farmToggle.Value == false
                 end
             end
-            
+        end
+    end)
+
+    -- Auto swing script
+    swingToggle:OnChanged(function()
+        if Options.autoSwingToggle.Value == true and Options.farmToggle.Value == true then
+            print("Auto swing toggled on.")
+            repeat
+                wait(0.1)
+                autoFarm()
+            until Options.autoSwingToggle.Value == false or Options.farmToggle.Value == false
+        else
+            print("Auto swing toggled off.")
         end
     end)
 
     -- Auto sell script
     sellToggle:OnChanged(function()
         if Options.autoSellToggle.Value == true then
+            print("Auto sell toggled on.")
             if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
+        else
+            print("Auto sell toggled off.")
         end
     end)
 
@@ -510,13 +597,22 @@ do
         end
     end)
 
-    -- Auto sell script
+    -- Auto claim script
     claimToggle:OnChanged(function()
         if Options.autoClaimToggle.Value == true then
             repeat
                 wait(0.1)
                 getQuestStatus()
             until Options.autoClaimToggle.Value == false
+        end
+    end)
+
+    -- Auto pickup loot script
+    lootToggle:OnChanged(function()
+        if Options.autoLootToggle.Value == true then
+            print("Auto pickup loot toggled on.")
+        else
+            print("Auto pickup loot toggled off.")
         end
     end)
 
