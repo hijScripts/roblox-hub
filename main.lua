@@ -61,6 +61,13 @@ player.Idled:connect(function()
 virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
 end)
 
+-- Allowing pathfinding to go through invisible walls
+for index, ballBarrier in pairs(game.workspace:GetDescendants()) do
+    if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
+        ballBarrier.CanCollide = false
+    end
+end
+
 -- Get Selected Menu frame
 function getFrame(name)
     for index, option in pairs(menuOptions) do
@@ -294,12 +301,6 @@ end
 
 -- Function to move character to given position
 function goTo(targetPos)
-    for index, ballBarrier in pairs(game.workspace:GetDescendants()) do
-        if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
-            ballBarrier.CanCollide = false
-        end
-    end
-
     local path = PathfindingService:CreatePath()
     local reachedConnection
     local pathBlockedConnection
@@ -364,7 +365,7 @@ function goTo(targetPos)
 
     repeat
         task.wait()
-    until (humanoidRoot.Position - targetPos).Magnitude <= 10
+    until (humanoidRoot.Position - targetPos).Magnitude < 10
 end
 
 -- Check capacity of backpack
@@ -567,7 +568,7 @@ do
                 if Options.autoFollowCloud.Value == true then followCloud() end -- following first cloud in field
 
                 task.wait()
-                if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 5 then -- detects if users get stuck
+                if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 10 then -- detects if users get stuck
                     for index, field in pairs(fields) do 
                         if field.Name == fieldDropdown.Value then
                             print("Returning user to " .. field.Name)
