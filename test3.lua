@@ -1,35 +1,55 @@
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- Player Variables
+local workspace = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character
+local humanoid = character:FindFirstChild("Humanoid")
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+local virtualUser = game:GetService("VirtualUser")
 
-local Window = Fluent:CreateWindow({
-    Title = "Fluent " .. Fluent.Version,
-    SubTitle = "by dawid",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = false, -- The blur may be detectable, setting this to false disables blur entirely
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
-})
+-- Path Variables
+local PathfindingService = game:GetService("PathfindingService")
+local MAX_RETRIES = 5
+local RETRY_COOLDOWN = 5
+local YIELDING = false
 
---Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+-- Tween Variables
+local tweenService = game:GetService("TweenService")
+local tweenInfo = TweenInfo.new(3)
+
+-- Variables used for functions handling hives
+local hiveFolder = workspace.Honeycombs
+local hives = hiveFolder:GetChildren()
+
+-- Variables used for functions handling fields
+local fieldsFolder = workspace.FlowerZones
+local fields = fieldsFolder:GetChildren()
+
+-- Variables used for functions handling FlowerZones
+local flowersFolder = workspace.Flowers
+local flowers = flowersFolder:GetChildren()
+
+-- Variables used for functions handling NPCs
+local npcFolder = workspace.NPCs
+local npcs = npcFolder:GetChildren()
+
+-- Gadget Variables
+local gadgetsFolder = workspace.Gadgets
+local gadgets = gadgetsFolder:GetChildren()
+
+local pos = {
+    position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)
 }
 
-local Options = Fluent.Options
+local hr = {
+    position = Vector3.new(humanoidRoot.Position.X, humanoidRoot.Position.Y, humanoidRoot.Position.Z)
+}
 
-local Dropdown = Tabs.Main:AddDropdown("MultiDropdown", {
-    Title = "Dropdown",
-    Description = "You can select multiple values.",
-    Values = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen"},
-    Multi = false,
-    Default = 1,
-})
-
-Dropdown:OnChanged(function(Value)
-    print(Value)
-end)
-
-print(Dropdown.Value)
+for index, hive in pairs(hives) do
+    print("Checking hive")
+    if tostring(hive.Owner.Value) == player.Name then
+        print("found hive")
+        local tween = tweenService:Create(hr, tweenInfo, pos)
+        print("playing tween")
+        tween:Play()
+    end
+end

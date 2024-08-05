@@ -37,6 +37,9 @@ local MAX_RETRIES = 5
 local RETRY_COOLDOWN = 5
 local YIELDING = false
 
+-- Tween Variables
+local tweenService = game:GetService("TweenService")
+
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
 local hives = hiveFolder:GetChildren()
@@ -45,9 +48,17 @@ local hives = hiveFolder:GetChildren()
 local fieldsFolder = workspace.FlowerZones
 local fields = fieldsFolder:GetChildren()
 
+-- Variables used for functions handling FlowerZones
+local flowersFolder = workspace.Flowers
+local flowers = flowersFolder:GetChildren()
+
 -- Variables used for functions handling NPCs
 local npcFolder = workspace.NPCs
 local npcs = npcFolder:GetChildren()
+
+-- Gadget Variables
+local gadgetsFolder = workspace.Gadgets
+local gadgets = gadgetsFolder:GetChildren()
 
 -- Variable for all toggles
 local toggleList = {}
@@ -68,6 +79,8 @@ for index, ballBarrier in pairs(game.workspace:GetDescendants()) do
     end
 end
 
+-- keeps breaking
+
 -- Get Selected Menu frame
 function getFrame(name)
     for index, option in pairs(menuOptions) do
@@ -79,7 +92,9 @@ end
 
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
-    if checkIfField() then
+    local pos = humanoidRoot.Position
+
+    if touchingFlower(pos) then
         require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
    end
 end
@@ -384,7 +399,7 @@ function autoSell()
 
         goTo(player.SpawnPos.Value.Position)
 
-        task.wait(3)
+        task.wait(1.5)
 
         local args = {
             [1] = "ToggleHoneyMaking"
@@ -425,7 +440,7 @@ end
 -- Check if hive exists
 function checkOwnsHive()
     for index, hive in pairs(hives) do
-        if hive.Owner.Value == player.DisplayName then
+        if tostring(hive.Owner.Value) == player.Name then
             return true
         else
             return false
@@ -434,11 +449,13 @@ function checkOwnsHive()
 end
 
 -- Checks if in field
-function checkIfField()
+function inField(farmField)
     for index, field in pairs(fields) do
-        local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
-        if mag <= 45 then
-            return true
+        if field.Name == farmField then
+            local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
+            if mag <= 45 and touchingFlower then
+                return true
+            end
         end
     end
 
@@ -465,6 +482,33 @@ function checkForMonster()
     return false
 end
 
+-- Function to check for vicious bee
+function viciousNearby()
+    local mobFolder = workspace.Monsters
+    local mobs = mobFolder:GetChildren()
+
+    if #mobs > 0 then -- Making sure there are mobs
+        for index, mob in mobs do
+            if mob.Name:match("Vicious") then
+                if mob:FindFirstChild("HumanoidRootPart") then
+                    local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
+                    if mag <= 50 then
+                        print("Vicious Bee in area... Fleeing to safety.")
+                        --local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
+                        -- local tween = tweenService:Create(humanoidRoot, player.SpawnPos.Value.Position)
+                        -- tween:Play()
+                        goTo(player.SpawnPos.Value.Position)
+
+                        repeat
+                            task.wait(1)
+                        until not mob:FindFirstChild("HumanoidRootPart")
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- Function to check for collectibles
 
 -- Auto collect loot
@@ -476,7 +520,7 @@ function collectLoot()
     if #collectibles > 0 then
         for index, collectible in pairs(collectibles) do
             local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
-            if mag <= 30 then
+            if mag <= 30 and touchingFlower(collectible.Position) then
                 goTo(collectible.Position)
                 task.wait(0.5)
             end
@@ -512,9 +556,37 @@ function followCloud()
     end
 end
 
+-- Check if item is inside a flower tile
+function touchingFlower(pos)
+
+    for index, flower in pairs(flowers) do
+        if (Vector2.new(pos.X - flower.Position.X) - Vector2.new(pos.Z - flower.Position.Z)).Magnitude <= 4 then
+            return true
+        end
+    end
+
+    if touchingGadget(pos) then -- sometimes gadget can take over flower tile which causes issues
+        return true
+    end
+
+    return false
+end
+
+-- Check if human is inside a gadget
+function touchingGadget(pos)
+    
+    for index, gadget in pairs(gadgets) do
+        if (Vector2.new(pos.X - gadget.WorldPivot.Position.X) - Vector2.new(pos.Z - gadget.WorldPivot.Position.Z)).Magnitude <= 4 then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- auto claim badge
 
--- "INJECTING" UI
+--################################# "INJECTING" UI #################################--
 do
     Fluent:Notify({
         Title = "Notification",
@@ -548,6 +620,9 @@ do
     -- Auto Follow Cloud Toggle
     local cloudToggle = Tabs.autoFarmTab:AddToggle("autoFollowCloud", {Title = "Auto Follow Cloud", Default = false})
 
+    -- Avoid Vicious Bee Toggle
+    local avoidVicious = Tabs.autoFarmTab:AddToggle("autoAvoidVicious", {Title = "Auto Avoid Vicious Bee", Default = false})
+
     -- Auto Quest Toggle
     local questToggle = Tabs.autoFarmTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
 
@@ -557,18 +632,28 @@ do
     -- Auto Farm script
     autoFarmToggle:OnChanged(function()
         if Options.farmToggle.Value == true then
-            fieldDropdown:SetValue(fieldDropdown.Value) 
+            print("Auto farm toggled on.")
+
+            -- resetting values to update functions
+            if fieldDropdown.Value ~= "Empty" then fieldDropdown:SetValue(fieldDropdown.Value) end
+            if Options.autoSwingToggle.Value == true then Options.autoSwingToggle:SetValue(true) end
+            if Options.autoSellToggle.Value == true then Options.autoSellToggle:SetValue(true) end
+            if Options.autoLootToggle.Value == true then Options.autoLootToggle:SetValue(true) end
+            if Options.autoFollowCloud.Value == true then Options.autoFollowCloud:SetValue(true) end
+            if Options.autoAvoidVicious.Value == true then Options.autoAvoidVicious:SetValue(true) end
+
             repeat
                 task.wait()
                 local pos = humanoidRoot.Position
 
                 if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+                if Options.autoAvoidVicious.Value == true then viciousNearby() end
                 if Options.autoLootToggle.Value == true then collectLoot() end -- checking for nearby loot
                 if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
                 if Options.autoFollowCloud.Value == true then followCloud() end -- following first cloud in field
 
                 task.wait()
-                if not checkIfField() and ((pos - player.SpawnPos.Value.Position).Magnitude) > 10 then -- detects if users get stuck
+                if not inField(fieldDropdown.Value) or not touchingFlower(pos) then -- detects if users get stuck
                     for index, field in pairs(fields) do 
                         if field.Name == fieldDropdown.Value then
                             print("Returning user to " .. field.Name)
@@ -578,7 +663,7 @@ do
                 end
             until Options.farmToggle.Value == false
         else
-            print("Auto Farm Toggled Off")
+            print("Auto farm toggled off.")
         end
     end)
 
@@ -586,6 +671,7 @@ do
     fieldDropdown:OnChanged(function(value)
         print("Selected: " .. value)
         if Options.farmToggle.Value == true then
+            print("Field dropdown value: " .. fieldDropdown.Value)
             for index, field in pairs(fields) do
                 if field.Name == value then
                     task.wait()
@@ -653,6 +739,15 @@ do
             print("Auto follow cloud toggled on.")
         else
             print("Auto follow cloud toggled off.")
+        end
+    end)
+
+    -- Auto avoid vicious script
+    avoidVicious:OnChanged(function()
+        if Options.autoAvoidVicious.Value == true then
+            print("Auto avoid vicious toggled on.")
+        else
+            print("Auto avoid vicious toggled off.")
         end
     end)
 
