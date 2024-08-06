@@ -18,6 +18,8 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     mainTab = Window:AddTab({ Title = "Main", Icon = "" }),
     autoFarmTab = Window:AddTab({ Title = "AutoFarm", Icon = "" }),
+    autoQuestTab = Window:AddTab({ Title = "AutoQuest", Icon = "" }),
+    autoMobTab = Window:AddTab({ Title = "AutoMob", Icon = "" }),
     teleportTab = Window:AddTab({ Title = "Teleports", Icon = "" })
 }
 
@@ -39,6 +41,7 @@ local YIELDING = false
 
 -- Tween Variables
 local tweenService = game:GetService("TweenService")
+local tweenInfo = TweenInfo.New(3)
 
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
@@ -73,7 +76,7 @@ virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
 end)
 
 -- Allowing pathfinding to go through invisible walls
-for index, ballBarrier in pairs(game.workspace:GetDescendants()) do
+for index, ballBarrier in ipairs(game.workspace:GetDescendants()) do
     if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
         ballBarrier.CanCollide = false
     end
@@ -83,7 +86,7 @@ end
 
 -- Get Selected Menu frame
 function getFrame(name)
-    for index, option in pairs(menuOptions) do
+    for index, option in ipairs(menuOptions) do
         if option.Name == name then
             return option
         end
@@ -114,11 +117,11 @@ function taskFinder()
     local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
 
     -- 3. Get all tasks for each quest
-    for index, quest in pairs(questList) do
+    for index, quest in ipairs(questList) do
         local taskList = quest:GetChildren()
 
         -- 4. Categorize each task
-        for index, task in pairs(taskList) do
+        for index, task in ipairs(taskList) do
             if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then -- Ignore the title bar
                 local desc = task.Description.ContentText -- Get the description
 
@@ -143,17 +146,17 @@ function taskFinder()
 
     -- 5. Print the organized tasks
     -- print("Field_Quest:")
-    -- for _, quest in pairs(field_Quests) do
+    -- for _, quest in ipairs(field_Quests) do
     --     print(" - " .. quest)
     -- end
 
     -- print("Food_Quest:")
-    -- for _, quest in pairs(food_Quests) do
+    -- for _, quest in ipairs(food_Quests) do
     --     print(" - " .. quest)
     -- end
 
     -- print("Mob_Quest:")
-    -- for _, quest in pairs(mob_Quests) do
+    -- for _, quest in ipairs(mob_Quests) do
     --     print(" - " .. quest)
     -- end
 
@@ -184,7 +187,7 @@ function autoQuest()
 
     local taskList = {} -- List to hold all task instances
 
-    for index, quest in pairs(questList) do
+    for index, quest in ipairs(questList) do
         local questTasks = quest:GetChildren() -- List of all tasks for related quest
 
         for index, task in questTasks do
@@ -198,11 +201,11 @@ function autoQuest()
     local mobTasks, fieldTasks, foodQuests = taskFinder()
 
     -- 2. Complete field tasks
-    for index, fieldTask in pairs(fieldTasks) do
-        for index, field in pairs(fields) do
+    for index, fieldTask in ipairs(fieldTasks) do
+        for index, field in ipairs(fields) do
             if string.find(fieldTask, field.Name:match("^([%w]+)")) then
                 print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
-                for index, task in pairs(taskList) do
+                for index, task in ipairs(taskList) do
                     if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
                         if string.find(task.Description.ContentText, field.Name) then
                             print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
@@ -213,10 +216,7 @@ function autoQuest()
                                     task.wait()
                                     autoFarm()
                                     task.wait()
-                                    if Options.autoSellToggle.Value == true then 
-                                        autoSell() 
-                                        goTo(field.Position)
-                                    end
+                                    if Options.autoSellToggle.Value == true then autoSell() end
                                 until checkIfCompleted(task)
                             end
                         end
@@ -277,7 +277,7 @@ function getQuestStatus()
     local quests = questFrame.Content:FindFirstChild("Frame"):GetChildren()
     
 
-    for index, quest in pairs(quests) do -- Going through each quest and checking task individually
+    for index, quest in ipairs(quests) do -- Going through each quest and checking task individually
         if quest.Name == "QuestBox" then
             local tasks = {} -- table to go over tasks in each quest
 
@@ -291,7 +291,7 @@ function getQuestStatus()
             local numOfTasks = #tasks
 
 
-            for index, task in pairs(tasks) do 
+            for index, task in ipairs(tasks) do 
                 if task.Name == "TaskBar" then -- getting rid of non-task children
                     if #task.FillBar:GetChildren() >= 1 then -- if length found, task is complete
                         i = i + 1
@@ -300,7 +300,7 @@ function getQuestStatus()
             end
 
             if i == numOfTasks then
-                for index, npc in pairs(npcs) do
+                for index, npc in ipairs(npcs) do
                     if npc.Name ~= "Honey Bee" then
                         if tasks[1].Description.ContentText:match(npc.Name) then
                             print("Claiming quest for " .. npc.Name)
@@ -420,7 +420,7 @@ end
 function populateList(list)
     local itemList = {"Empty"} -- list to return of all fields
 
-    for index, item in pairs(list) do
+    for index, item in ipairs(list) do
         table.insert(itemList, item.Name)
     end
 
@@ -439,7 +439,7 @@ end
 
 -- Check if hive exists
 function checkOwnsHive()
-    for index, hive in pairs(hives) do
+    for index, hive in ipairs(hives) do
         if tostring(hive.Owner.Value) == player.Name then
             return true
         else
@@ -450,7 +450,7 @@ end
 
 -- Checks if in field
 function inField(farmField)
-    for index, field in pairs(fields) do
+    for index, field in ipairs(fields) do
         if field.Name == farmField then
             local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
             if mag <= 45 and touchingFlower then
@@ -494,10 +494,10 @@ function viciousNearby()
                     local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
                     if mag <= 50 then
                         print("Vicious Bee in area... Fleeing to safety.")
-                        --local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
-                        -- local tween = tweenService:Create(humanoidRoot, player.SpawnPos.Value.Position)
-                        -- tween:Play()
-                        goTo(player.SpawnPos.Value.Position)
+                        local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
+                        local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
+                        tween:Play()
+                        --goTo(player.SpawnPos.Value.Position)
 
                         repeat
                             task.wait(1)
@@ -518,7 +518,7 @@ function collectLoot()
     local pos = humanoidRoot.Position
 
     if #collectibles > 0 then
-        for index, collectible in pairs(collectibles) do
+        for index, collectible in ipairs(collectibles) do
             local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
             if mag <= 30 and touchingFlower(collectible.Position) then
                 goTo(collectible.Position)
@@ -544,7 +544,7 @@ function followCloud()
     local fieldClouds = {}
 
     if #clouds > 0 then
-        for index, cloud in pairs(clouds) do
+        for index, cloud in ipairs(clouds) do
             if ((pos - cloud.Root.Position).Magnitude) < 50 then
                 table.insert(fieldClouds, cloud)
             end
@@ -559,7 +559,7 @@ end
 -- Check if item is inside a flower tile
 function touchingFlower(pos)
 
-    for index, flower in pairs(flowers) do
+    for index, flower in ipairs(flowers) do
         if (Vector2.new(pos.X - flower.Position.X) - Vector2.new(pos.Z - flower.Position.Z)).Magnitude <= 4 then
             return true
         end
@@ -575,7 +575,7 @@ end
 -- Check if human is inside a gadget
 function touchingGadget(pos)
     
-    for index, gadget in pairs(gadgets) do
+    for index, gadget in ipairs(gadgets) do
         if (Vector2.new(pos.X - gadget.WorldPivot.Position.X) - Vector2.new(pos.Z - gadget.WorldPivot.Position.Z)).Magnitude <= 4 then
             return true
         end
@@ -597,9 +597,6 @@ do
 
     -- Auto Farm Tab --
 
-    -- Enable auto farm toggle
-    local autoFarmToggle = Tabs.autoFarmTab:AddToggle("farmToggle", {Title = "Enabled", Default = false})
-
     -- Select field dropdown
     local fieldDropdown = Tabs.autoFarmTab:AddDropdown("fieldTP", {
         Title = "Select Field",
@@ -607,6 +604,9 @@ do
         Multi = false,
         Default = 1
     })
+    
+    -- Enable auto farm toggle
+    local autoFarmToggle = Tabs.autoFarmTab:AddToggle("farmToggle", {Title = "Enabled", Default = false})
 
     -- Auto Swing Toggle
     local swingToggle = Tabs.autoFarmTab:AddToggle("autoSwingToggle", {Title = "Auto Swing", Default = false})
@@ -623,12 +623,22 @@ do
     -- Avoid Vicious Bee Toggle
     local avoidVicious = Tabs.autoFarmTab:AddToggle("autoAvoidVicious", {Title = "Auto Avoid Vicious Bee", Default = false})
 
-    -- Auto Quest Toggle
-    local questToggle = Tabs.autoFarmTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
+    -- Auto Sprinkler Toggle
+    local sprinklerToggle = Tabs.autoFarmTab:AddToggle("autoSprinklerToggle", {Title = "Auto Sprinkler", Default = false})
 
-    -- Auto Claim Quest Toggle
-    local claimToggle = Tabs.autoFarmTab:AddToggle("autoClaimToggle", {Title = "Auto Claim Quest [BETA]", Default = false})
+    -- Auto Bubbles Toggle
+    local bubblesToggle = Tabs.autoFarmTab:AddToggle("autoBubblesToggle", {Title = "Auto Farm Bubbles", Default = false})
 
+    -- Auto Falling Lights Toggle
+    local lightsToggle = Tabs.autoFarmTab:AddToggle("autoLightsToggle", {Title = "Auto Farm Falling Lights", Default = false})
+
+    -- Auto Fuzz Bombs Toggle
+    local fuzzToggle = Tabs.autoFarmTab:AddToggle("autoFuzzToggle", {Title = "Auto Fuzz Bombs", Default = false})
+
+    -- Auto Snowbear Toggle
+    local snowbearToggle = Tabs.autoFarmTab:AddToggle("autoSnowbearToggle", {Title = "Auto Farm Snow Bear", Default = false})
+
+    -- Auto avoid spikes
     -- Auto Farm script
     autoFarmToggle:OnChanged(function()
         if Options.farmToggle.Value == true then
@@ -654,7 +664,7 @@ do
 
                 task.wait()
                 if not inField(fieldDropdown.Value) or not touchingFlower(pos) then -- detects if users get stuck
-                    for index, field in pairs(fields) do 
+                    for index, field in ipairs(fields) do 
                         if field.Name == fieldDropdown.Value then
                             print("Returning user to " .. field.Name)
                             goTo(field.Position)
@@ -672,7 +682,7 @@ do
         print("Selected: " .. value)
         if Options.farmToggle.Value == true then
             print("Field dropdown value: " .. fieldDropdown.Value)
-            for index, field in pairs(fields) do
+            for index, field in ipairs(fields) do
                 if field.Name == value then
                     task.wait()
                     goTo(field.Position)
@@ -704,6 +714,31 @@ do
         end
     end)
 
+    -- Auto pickup loot script
+    lootToggle:OnChanged(function()
+        if Options.autoLootToggle.Value == true then
+            print("Auto pickup loot toggled on.")
+        else
+            print("Auto pickup loot toggled off.")
+        end
+    end)
+
+    -- Auto pickup loot script
+    cloudToggle:OnChanged(function()
+        if Options.autoFollowCloud.Value == true then
+            print("Auto follow cloud toggled on.")
+        else
+            print("Auto follow cloud toggled off.")
+        end
+    end)
+
+-- Auto Quest Tab --
+    -- Auto Quest Toggle
+    local questToggle = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
+
+    -- Auto Claim Quest Toggle
+    local claimToggle = Tabs.autoQuestTab:AddToggle("autoClaimToggle", {Title = "Auto Claim Quest [BETA]", Default = false})
+
     -- Auto quest script
     questToggle:OnChanged(function()
         if Options.autoQuestToggle.Value == true then
@@ -724,24 +759,6 @@ do
         end
     end)
 
-    -- Auto pickup loot script
-    lootToggle:OnChanged(function()
-        if Options.autoLootToggle.Value == true then
-            print("Auto pickup loot toggled on.")
-        else
-            print("Auto pickup loot toggled off.")
-        end
-    end)
-
-    -- Auto pickup loot script
-    cloudToggle:OnChanged(function()
-        if Options.autoFollowCloud.Value == true then
-            print("Auto follow cloud toggled on.")
-        else
-            print("Auto follow cloud toggled off.")
-        end
-    end)
-
     -- Auto avoid vicious script
     avoidVicious:OnChanged(function()
         if Options.autoAvoidVicious.Value == true then
@@ -751,8 +768,36 @@ do
         end
     end)
 
+-- Auto Mob Tab -- 
+        
+    -- Select boss dropdown
+    local bossDropdown = Tabs.autoMobTab:AddDropdown("selectBoss", {
+        Title = "Select Boss",
+        Values = {"Boss 1", "Boss 2", "Boss 3", "Boss 4", "Boss 5", "Boss 6"},
+        Multi = true,
+        Default = 1
+    })
+
+    -- Auto Kill X Boss
+    local xToggle = Tabs.autoMobTab:AddToggle("autoXToggle", {Title = "Auto Kill", Default = false})
+
+    -- field selection script
+    bossDropdown:OnChanged(function(value)
+        task.wait()
+    end)
+
+    -- Auto quest script
+    xToggle:OnChanged(function()
+        if Options.autoXToggle.Value == true then
+            repeat
+                task.wait()
+            until Options.autoXToggle.Value == false
+        end
+    end)
+
+-- Teleport Tab --
     -- Claim Hive Button
-    Tabs.mainTab:AddButton({
+    Tabs.teleportTab:AddButton({
         Title = "Claim Hive",
         Description = "Claims an empty hive",
         Callback = function()
@@ -760,8 +805,8 @@ do
         end
     })
 
-    -- TP to Hive 
-    Tabs.mainTab:AddButton({
+    -- Go to Hive 
+    Tabs.teleportTab:AddButton({
         Title = "Go to Hive",
         Description = "Takes you to your hive",
         Callback = function()
