@@ -16,7 +16,6 @@ local Window = Fluent:CreateWindow({
 
 -- Creating Tabs
 local Tabs = {
-    mainTab = Window:AddTab({ Title = "Main", Icon = "" }),
     autoFarmTab = Window:AddTab({ Title = "AutoFarm", Icon = "" }),
     autoQuestTab = Window:AddTab({ Title = "AutoQuest", Icon = "" }),
     autoMobTab = Window:AddTab({ Title = "AutoMob", Icon = "" }),
@@ -36,12 +35,12 @@ local virtualUser = game:GetService("VirtualUser")
 -- Path Variables
 local PathfindingService = game:GetService("PathfindingService")
 local MAX_RETRIES = 5
-local RETRY_COOLDOWN = 5
+local RETRY_COOLDOWN = 1
 local YIELDING = false
 
--- Tween Variables
-local tweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.New(3)
+-- -- Tween Variables
+-- local tweenService = game:GetService("TweenService")
+-- local tweenInfo = TweenInfo.New(3)
 
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
@@ -75,14 +74,19 @@ player.Idled:connect(function()
 virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
 end)
 
--- Allowing pathfinding to go through invisible walls
+-- Allowing pathfinding to go through invisible walls / objects / etc
 for index, ballBarrier in ipairs(game.workspace:GetDescendants()) do
     if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
+        print("Found barrier")
         ballBarrier.CanCollide = false
     end
 end
 
--- keeps breaking
+for index, ball in ipairs(game.Workspace.BoostBalls:GetChildren()) do
+    if ball.CanCollide == true then
+        ball.CanCollide = false
+    end
+end
 
 -- Get Selected Menu frame
 function getFrame(name)
@@ -326,6 +330,7 @@ function goTo(targetPos)
     repeat
         RETRY_NUM = RETRY_NUM + 1 
         success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, targetPos)
+        print("success: ", success)
         if not success then -- if fails, warn console
             print("Pathfind compute path error: " .. errorMessage)
             task.wait(RETRY_COOLDOWN)
@@ -357,10 +362,10 @@ function goTo(targetPos)
 
             pathBlockedConnection = path.Blocked:Connect(function(waypointNumber)
                 if waypointNumber > currentWaypointIndex then -- blocked path is ahead of the BoostBallBarrier
-                    reachedConnection:Disconnect()
-                    pathBlockedConnection:Disconnect()
-                    reachedConnection = nil
-                    pathBlockedConnection = nil
+                    -- reachedConnection:Disconnect()
+                    -- pathBlockedConnection:Disconnect()
+                    -- reachedConnection = nil
+                    -- pathBlockedConnection = nil
                     goTo(targetPos) -- new path
                 end
             end)
@@ -371,7 +376,7 @@ function goTo(targetPos)
             end
 
         else -- if the path can't be computed between two points, do nothing!
-            return
+            print("Error:", path.Status)
         end
     else -- this only runs IF the function has problems computing the path in its backend, NOT if a path can't be created between two points.
         print("Pathfind compute retry maxed out, error: " .. errorMessage)
@@ -453,7 +458,7 @@ function inField(farmField)
     for index, field in ipairs(fields) do
         if field.Name == farmField then
             local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
-            if mag <= 45 and touchingFlower then
+            if mag <= 45 and touchingFlower(humanoidRoot.Position) then
                 return true
             end
         end
@@ -494,10 +499,10 @@ function viciousNearby()
                     local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
                     if mag <= 50 then
                         print("Vicious Bee in area... Fleeing to safety.")
-                        local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
-                        local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
-                        tween:Play()
-                        --goTo(player.SpawnPos.Value.Position)
+                        -- local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
+                        -- local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
+                        -- tween:Play()
+                        goTo(player.SpawnPos.Value.Position)
 
                         repeat
                             task.wait(1)
@@ -522,7 +527,9 @@ function collectLoot()
             local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
             if mag <= 30 and touchingFlower(collectible.Position) then
                 goTo(collectible.Position)
-                task.wait(0.5)
+                repeat
+                    task.wait()
+                until collectible.Parent == nil
             end
         end
     end
@@ -560,7 +567,7 @@ end
 function touchingFlower(pos)
 
     for index, flower in ipairs(flowers) do
-        if (Vector2.new(pos.X - flower.Position.X) - Vector2.new(pos.Z - flower.Position.Z)).Magnitude <= 4 then
+        if (pos - flower.Position).Magnitude <= 4 then
             return true
         end
     end
@@ -576,7 +583,7 @@ end
 function touchingGadget(pos)
     
     for index, gadget in ipairs(gadgets) do
-        if (Vector2.new(pos.X - gadget.WorldPivot.Position.X) - Vector2.new(pos.Z - gadget.WorldPivot.Position.Z)).Magnitude <= 4 then
+        if (pos - gadget.Position).Magnitude <= 4 then
             return true
         end
     end
@@ -606,7 +613,7 @@ do
     })
     
     -- Enable auto farm toggle
-    local autoFarmToggle = Tabs.autoFarmTab:AddToggle("farmToggle", {Title = "Enabled", Default = false})
+    local farmToggle = Tabs.autoFarmTab:AddToggle("autoFarmToggle", {Title = "Enabled", Default = false})
 
     -- Auto Swing Toggle
     local swingToggle = Tabs.autoFarmTab:AddToggle("autoSwingToggle", {Title = "Auto Swing", Default = false})
@@ -640,38 +647,61 @@ do
 
     -- Auto avoid spikes
     -- Auto Farm script
-    autoFarmToggle:OnChanged(function()
-        if Options.farmToggle.Value == true then
+    farmToggle:OnChanged(function()
+        if Options.autoFarmToggle.Value == true then
+            task.wait()
             print("Auto farm toggled on.")
+            local selectedField = fieldDropdown.Value -- value to check for if user changes field
 
-            -- resetting values to update functions
-            if fieldDropdown.Value ~= "Empty" then fieldDropdown:SetValue(fieldDropdown.Value) end
-            if Options.autoSwingToggle.Value == true then Options.autoSwingToggle:SetValue(true) end
-            if Options.autoSellToggle.Value == true then Options.autoSellToggle:SetValue(true) end
-            if Options.autoLootToggle.Value == true then Options.autoLootToggle:SetValue(true) end
-            if Options.autoFollowCloud.Value == true then Options.autoFollowCloud:SetValue(true) end
-            if Options.autoAvoidVicious.Value == true then Options.autoAvoidVicious:SetValue(true) end
+            -- going to selected field
+            if selectedField ~= "Empty" then 
+                for index, field in ipairs(fields) do
+                    print("Matching " .. field.Name .. " Type : " .. type(field.Name) .. " to " .. selectedField .. " Type : " .. type(field.Name))
+                    if field.Name == selectedField then
+                        print("Matched " .. field.Name .. " and " .. selectedField)
+                        goTo(field.Position) 
+                    end
+                end
+            end 
 
             repeat
                 task.wait()
                 local pos = humanoidRoot.Position
+                local newSelectedField = fieldDropdown.Value
 
+                -- field change check
+                if newSelectedField ~= selectedField then
+                    print("Field changed to", selectedField)
+                    if newSelectedField ~= "Empty" then
+                        for index, field in ipairs(fields) do
+                            if field.Name == newSelectedField then
+                                goTo(field.Position)
+                                selectedField = newSelectedField
+                            end
+                        end
+                    end
+                end
+
+                -- Mob nearby check
                 if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                -- Executing all activated functions
                 if Options.autoAvoidVicious.Value == true then viciousNearby() end
                 if Options.autoLootToggle.Value == true then collectLoot() end -- checking for nearby loot
                 if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
                 if Options.autoFollowCloud.Value == true then followCloud() end -- following first cloud in field
 
+                -- Stuck user check
                 task.wait()
-                if not inField(fieldDropdown.Value) or not touchingFlower(pos) then -- detects if users get stuck
+                if not inField(selectedField) or not touchingFlower(pos) then
                     for index, field in ipairs(fields) do 
-                        if field.Name == fieldDropdown.Value then
+                        if field.Name == newSelectedField then
                             print("Returning user to " .. field.Name)
                             goTo(field.Position)
                         end
                     end
                 end
-            until Options.farmToggle.Value == false
+            until Options.autoFarmToggle.Value == false
         else
             print("Auto farm toggled off.")
         end
@@ -680,25 +710,16 @@ do
     -- field selection script
     fieldDropdown:OnChanged(function(value)
         print("Selected: " .. value)
-        if Options.farmToggle.Value == true then
-            print("Field dropdown value: " .. fieldDropdown.Value)
-            for index, field in ipairs(fields) do
-                if field.Name == value then
-                    task.wait()
-                    goTo(field.Position)
-                end
-            end
-        end
     end)
 
     -- Auto swing script
     swingToggle:OnChanged(function()
-        if Options.autoSwingToggle.Value == true and Options.farmToggle.Value == true then
+        if Options.autoSwingToggle.Value == true and Options.autoFarmToggle.Value == true then
             print("Auto swing toggled on.")
             repeat
                 task.wait()
                 autoFarm()
-            until Options.autoSwingToggle.Value == false or Options.farmToggle.Value == false
+            until Options.autoSwingToggle.Value == false or Options.autoFarmToggle.Value == false
         else
             print("Auto swing toggled off.")
         end
@@ -769,29 +790,39 @@ do
     end)
 
 -- Auto Mob Tab -- 
-        
+    -- Select mob dropdown
+    local mobDropdown = Tabs.autoMobTab:AddDropdown("selectMob", {
+        Title = "Select Mob",
+        Values = {"Mob 1", "Mob 2", "Mob 3", "Mob 4", "Mob 5", "Mob 6"},
+        Multi = false,
+        Default = 1
+    })
+
+    -- Auto Kill Mob 
+    local mobToggle = Tabs.autoMobTab:AddToggle("autoMobToggle", {Title = "Auto Kill Mob", Default = false})
+
     -- Select boss dropdown
     local bossDropdown = Tabs.autoMobTab:AddDropdown("selectBoss", {
         Title = "Select Boss",
         Values = {"Boss 1", "Boss 2", "Boss 3", "Boss 4", "Boss 5", "Boss 6"},
-        Multi = true,
+        Multi = false,
         Default = 1
     })
 
-    -- Auto Kill X Boss
-    local xToggle = Tabs.autoMobTab:AddToggle("autoXToggle", {Title = "Auto Kill", Default = false})
+    -- Auto Boss Toggle
+    local bossToggle = Tabs.autoMobTab:AddToggle("autoBossToggle", {Title = "Auto Kill Boss", Default = false})
 
-    -- field selection script
+    -- auto boss dropdown
     bossDropdown:OnChanged(function(value)
         task.wait()
     end)
 
-    -- Auto quest script
-    xToggle:OnChanged(function()
-        if Options.autoXToggle.Value == true then
+    -- Auto boss toggle
+    bossToggle:OnChanged(function()
+        if Options.autoBossToggle.Value == true then
             repeat
                 task.wait()
-            until Options.autoXToggle.Value == false
+            until Options.autoBossToggle.Value == false
         end
     end)
 
