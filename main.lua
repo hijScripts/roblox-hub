@@ -317,69 +317,176 @@ function getQuestStatus()
 end
 
 -- Function to move character to given position
-function goTo(targetPos)
-    local pos = humanoidRoot.Position
-    local path = PathfindingService:CreatePath()
+local function calcPath(pos)
+    local path = PathfindingService:CreatePath({
+        Costs = {
 
-    local RETRY_NUM = 0
+        }
+    })
+
     local success, errorMessage
-    local reachedWaypoint
+    local RETRY_NUM = 0
 
+    -- Retrying this as network issues can cause it to fail initially.
     repeat
-        RETRY_NUM = RETRY_NUM + 1 
+        RETRY_NUM = RETRY_NUM + 1
 
-        success, errorMessage = pcall(function()
-            path:ComputeAsync(humanoidRoot.Position, targetPos)
-        end)
+        success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, pos)
 
-        if not success then -- if fails, warn console
-            print("Pathfind compute path error: " .. errorMessage)
-            task.wait(RETRY_COOLDOWN)
+        if not success then -- if it fails, print to console and then retry
+            print("Pathfind compute error: " .. errorMessage)
         end
     until success == true or RETRY_NUM > MAX_RETRIES
-    
+
     if success then
         if path.Status == Enum.PathStatus.Success then
-            local waypoints = path:GetWaypoints()
-            
-            for index, waypoint in ipairs(waypoints) do
-                if waypoint.Action == Enum.PathWaypointAction.Jump then
-                    humanoid.Jump = true
-                end
-
-                humanoid:MoveTo(waypoint.Position)
-                reachedWaypoint = humanoid.MoveToFinished:Wait()
-
-                if not reachedWaypoint then
-                    repeat
-                        local newPos = humanoidRoot.Position
-
-                        humanoid:MoveTo(Vector3.new(newPos.X + 5, newPos.Y, newPos.Z))
-                        reachedWaypoint = humanoid.MoveToFinished:Wait()
-
-                        if humanoidRoot.Position.X == newPos.X then
-                            humanoid:MoveTo(Vector3.new(newPos.X, newPos.Y, newPos.Z + 5))
-                            reachedWaypoint = humanoid.MoveToFinished:Wait()
-                        end
-                    until reachedWaypoint
-                end
-            end
+            return path
         else
-            print("Error:", errorMessage)
+            local RETRY_NUM = 0
+
+            -- Retrying again as it is no longer network issue, it's humanoidRoot.Position issue
             repeat
+                RETRY_NUM = RETRY_NUM + 1
+                print("not close enough")
+
+                local humanPos = humanoidRoot.Position
+
+                humanoid:MoveTo(humanPos + Vector3.new(0, 0, -5)) -- relocationg before recomputing
+                humanoid.MoveToFinished:Wait()
+
                 local newPos = humanoidRoot.Position
 
-                humanoid:MoveTo(Vector3.new(5, 0, 0))
-
-                if humanoidRoot.Position.X == newPos.X then
-                    humanoid:MoveTo(Vector3.new(0, 0, 5))
+                if math.floor(newPos.Z) == math.floor(humanPos.Z) then
+                    humanoid:MoveTo(humanPos + Vector3.new(-5, 0, 0)) -- relocationg before recomputing
+                    humanoid.MoveToFinished:Wait()
                 end
 
-                path:ComputeAsync(pos, targetPos)
-            until path.Status == Enum.PathStatus.Success
+                path:ComputeAsync(humanoidRoot.Position, pos)
+
+            until path.Status == Enum.PathStatus.Success or RETRY_NUM > MAX_RETRIES
+
+            if path.Status == Enum.PathStatus.Success then
+                return path
+            else
+                print("Cannot compute path, tweening instead...")
+                return nil
+            end
         end
+    else
+        print("Pathfind compute error: " .. errorMessage)
+        return nil
     end
 end
+
+local function goToLocation(locationPos)
+    local path = calcPath(locationPos)
+
+    if not path then
+        local tweenService = game:GetService("TweenService")
+        local tweenInfo = TweenInfo.new(3)
+        local target = {Position = locationPos + Vector3.new(0, 5, 0)}
+
+        local tween = tweenService:Create(humanoidRoot, tweenInfo, target)
+
+        tween:Play()
+    end
+
+    local reachedConnection
+    local pathBlockedConnection
+    local currentWaypointIndex = 1
+    local nextWaypointIndex = 2
+    local ballParts = {}
+
+    local waypoints = path:GetWaypoints()
+
+    for index, waypoint in ipairs(waypoints) do
+        -- spawn dots to destination
+        task.wait()
+        local part = Instance.new("Part")
+        part.Name = "GuideBall"
+        part.Shape = "Ball"
+        part.Color = Color3.new(255, 0, 0)
+        part.Material = "Neon"
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+
+        table.insert(ballParts, part)
+    end
+
+    for index, waypoint in ipairs(waypoints) do
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToLocation(locationPos)
+            end
+        end)
+            
+        -- delete the ball
+        ballParts[currentWaypointIndex]:Destroy()
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
+
+        nextWaypointIndex = nextWaypointIndex + 1
+    end
+
+    -- repeat task.wait() until we can meet a condition
+end
+
+local function goToItem(itemPos)
+    local path = calcPath(itemPos)
+
+    local reachedConnection
+    local pathBlockedConnection
+    local currentWaypointIndex = 1
+    local nextWaypointIndex = currentWaypointIndex + 1
+
+    local waypoints = path:GetWaypoints()
+
+    for index, waypoint in ipairs(waypoints) do
+
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToItem(itemPos)
+            end
+        end)
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+        nextWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
+    end
+
+    -- repeat task.wait() until we can meet a condition
+end
+
 
 -- Check capacity of backpack
 function backpackFull()
@@ -395,7 +502,7 @@ function autoSell()
     if backpackFull() then -- Backpack capacity check
         local pos = humanoidRoot.Position
 
-        goTo(player.SpawnPos.Value.Position)
+        goToLocation(player.SpawnPos.Value.Position)
 
         task.wait(1.5)
 
@@ -410,7 +517,7 @@ function autoSell()
 
         task.wait(5) -- Getting last drops of pollen out
 
-        goTo(pos) -- Returning to original position
+        goToLocation(pos) -- Returning to original position
     end
 end
 
@@ -495,7 +602,7 @@ function viciousNearby()
                         -- local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
                         -- local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
                         -- tween:Play()
-                        goTo(player.SpawnPos.Value.Position)
+                        goToLocation(player.SpawnPos.Value.Position)
 
                         repeat
                             task.wait()
@@ -519,7 +626,7 @@ function collectLoot()
         for index, collectible in ipairs(collectibles) do
             local mag = math.floor((pos - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
             if mag <= 50 and touchingFlower(collectible.Position) then
-                goTo(collectible.Position)
+                goToItem(collectible.Position)
             end
         end
     end
@@ -549,7 +656,7 @@ function followCloud()
     end
 
     if #fieldClouds > 0 then
-        goTo(fieldClouds[1].Root.Position)
+        goToItem(fieldClouds[1].Root.Position)
     end
 end
 
@@ -596,7 +703,7 @@ function goToRandomPoint()
 
     until touchingFlower(newPos)
 
-    goTo(newPos)
+    goToItem(newPos)
 end
 
 -- auto claim badge
@@ -667,7 +774,7 @@ do
                     print("Matching " .. field.Name .. " Type : " .. type(field.Name) .. " to " .. selectedField .. " Type : " .. type(field.Name))
                     if field.Name == selectedField then
                         print("Matched " .. field.Name .. " and " .. selectedField)
-                        goTo(field.Position) 
+                        goToLocation(field.Position) 
                     end
                 end
             end 
@@ -683,7 +790,7 @@ do
                     if newSelectedField ~= "Empty" then
                         for index, field in ipairs(fields) do
                             if field.Name == newSelectedField then
-                                goTo(field.Position)
+                                goToLocation(field.Position)
                                 selectedField = newSelectedField
                             end
                         end
@@ -842,7 +949,7 @@ do
         Title = "Go to Hive",
         Description = "Takes you to your hive",
         Callback = function()
-            goTo(player.SpawnPos.Value.Position)
+            goToLocation(player.SpawnPos.Value.Position)
         end
     })
 
@@ -859,7 +966,7 @@ do
     fieldTP:OnChanged(function(value)
         for index, field in ipairs(fields) do
             if field.Name == value then
-                goTo(field.Position)
+                goToLocation(field.Position)
             end
         end
     end)

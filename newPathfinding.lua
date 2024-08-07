@@ -179,14 +179,14 @@ local function goToItem(itemPos)
     for index, waypoint in ipairs(waypoints) do
 
         -- need to catch blocked waypoints then call function onPathBlocked()
-            pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
-                -- making sure obstacle is further ahead
-                if blockedWaypointIndex >= nextWaypointIndex then
-                    pathBlockedConnection:Disconnect()
-                    goToItem(itemPos)
-                end
-            end)
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToItem(itemPos)
+            end
+        end)
 
         -- update waypoint
         currentWaypointIndex = currentWaypointIndex + 1
