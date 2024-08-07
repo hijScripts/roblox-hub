@@ -261,31 +261,6 @@ local function autoQuest()
             end
         end
     end
-
-    -- local i = 1
-    -- print("** Mob Tasks **")
-        
-    -- for index, task in mobTasks do
-    --     print("Task " .. i .. ": " .. task)
-    --     i = i + 1
-    -- end
-
-    -- local i = 1
-    -- print("** Field Tasks **")
-
-    -- for index, task in fieldTasks do
-    --     print("Task " .. i .. ": " .. task)
-    --     i = i + 1
-    -- end
-
-    -- local i = 1
-    -- print("** Food Tasks **")
-
-    -- for index, task in foodQuests do
-    --     print("Task " .. i .. ": " .. task)
-    --     i = i + 1
-    -- end
-
 end
 
 -- Auto Holiday Quest Function
@@ -350,7 +325,7 @@ local function getQuestStatus()
     end
 end
 
--- Function to move character to given position
+-- Functions to move character to given position
 local function calcPath(pos)
     local path = PathfindingService:CreatePath({
         Costs = {
@@ -555,9 +530,9 @@ local function autoSell()
     end
 end
 
--- Populate list with all fields
+-- Populate list with all objects/instances
 local function populateList(list)
-    local itemList = {"Empty"} -- list to return of all fields
+    local itemList = {"Empty"} -- list to return of all objects/instances
 
     for index, item in ipairs(list) do
         table.insert(itemList, item.Name)
