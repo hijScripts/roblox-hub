@@ -388,16 +388,22 @@ local function autoQuest(npc)
     local quests
     local taskList
 
+    print("Checking status of quests.")
     if checkForQuest() then
+        print("Quests Found!")
         quests = questFrame.Content.Frame:GetChildren():match("QuestBox")
     else
+        print("No quest found, accepting one now.")
         updateQuest(npc)
     end
 
+    print("Going over all quests to check for any completed ones.")
     for index, quest in ipairs(quests) do -- claiming any quests completed
         if checkQuestStatus(quest) then
+            print("Quest completed! Finding NPC of quest.")
             for index, NPC in ipairs(npcs) do
                 if quest:FindFirstChild("TaskBar").Description:match(NPC.Name) then
+                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
                     updateQuest(NPC.Name)
                     table.remove(quests, quests[index])
                 end
@@ -405,6 +411,7 @@ local function autoQuest(npc)
         end
     end
 
+    print("Sorting tasks into 3 lists now.")
     local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting tasks into different lists
 end
 
