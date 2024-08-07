@@ -321,7 +321,7 @@ local function checkForQuest()
         clickMouse(84, 105)
     end
 
-    local quests = questContent.Frame:GetChildren()
+    local quests = questFrame.Content.Frame:GetChildren()
 
     print("Checking if quest count is less than 0")
     if #quests <= 0 then -- If no quests, returning false
