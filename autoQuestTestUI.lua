@@ -203,6 +203,9 @@ local function goToLocation(locationPos)
     end
 
     -- repeat task.wait() until we can meet a condition
+    repeat
+        task.wait()
+    until (humanoidRoot.Position - locationPos).Magnitude < 10
 end
 
 local function goToItem(itemPos)
@@ -383,25 +386,19 @@ local function updateQuest(npc)
     for index, NPC in ipairs(npcs) do
         if NPC.Name == npc then -- going to selected NPC
             goToLocation(NPC.Circle.Position)
+
+            task.wait(1)
+
+            clickMouse(500, 50) -- Clicking activate button
+
+            local i = 0
+            repeat -- clicking through dialog
+                task.wait()
+                i = i + 1
+                clickMouse(666, 503)
+            until i > 15
         end
     end
-
-    if player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 then -- if user is on NPC circle, activating dialog
-        clickMouse(378, 6)
-    else
-        repeat
-            task.wait()
-        until player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 -- in case goTo function is running behind, halting user until it catches up
-        
-        clickMouse(378, 6)
-    end
-
-    local i = 0
-    repeat -- clicking through dialog
-        task.wait()
-        i = i + 1
-        clickMouse(666, 503)
-    until i > 10
 end
 
 -- Auto Quest
