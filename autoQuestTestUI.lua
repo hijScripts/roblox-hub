@@ -386,7 +386,7 @@ local function autoQuest(npc)
 
     -- Quest Frame & List of all Quests and Tasks
     local questFrame = getFrame("Quests")
-    local quests
+    local quests = {}
     local taskList
 
     print("Checking status of quests.")
