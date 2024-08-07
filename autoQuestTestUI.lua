@@ -19,6 +19,8 @@ local Tabs = {
     autoQuestTab = Window:AddTab({ Title = "Auto Quest", Icon = "" }),
 }
 
+local Options = Fluent.Options
+
 -- Player Variables
 local workspace = game:GetService("Workspace")
 local player = game:GetService("Players").LocalPlayer
@@ -256,7 +258,7 @@ local function getFrame(name)
 end
 
 -- Return all tasks organized into categories
-local function taskFinder()
+local function taskSorter()
     
     -- Tables for categorized tasks
     local mobQuests = {}
@@ -386,60 +388,38 @@ local function autoQuest(npc)
     local quests
     local taskList
 
-
     if checkForQuest() then
         quests = questFrame.Content.Frame:GetChildren():match("QuestBox")
     else
         updateQuest(npc)
     end
 
-    for index, quest in ipairs(quests) do
+    for index, quest in ipairs(quests) do -- claiming any quests completed
         if checkQuestStatus(quest) then
-            updateQuest(npc)
-        end
-    end
-
-    for index, quest in ipairs(questList) do
-        local questTasks = quest:GetChildren() -- List of all tasks for related quest
-
-        for index, task in questTasks do
-            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
-                table.insert(taskList, task) -- Adding each individual task to list
-            end
-        end
-    end
-
-    -- 1. Get the tasks required
-    local mobTasks, fieldTasks, foodQuests = taskFinder()
-
-    -- 2. Complete field tasks
-    for index, fieldTask in ipairs(fieldTasks) do
-        for index, field in ipairs(fields) do
-            if string.find(fieldTask, field.Name:match("^([%w]+)")) then
-                print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
-                for index, task in ipairs(taskList) do
-                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
-                        if string.find(task.Description.ContentText, field.Name) then
-                            print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
-                            if not checkIfCompleted(task) then
-                                print("going to field")
-                                goTo(field.Position)
-                                repeat
-                                    task.wait()
-                                    autoFarm()
-                                    task.wait()
-                                    if Options.autoSellToggle.Value == true then autoSell() end
-                                until checkIfCompleted(task)
-                            end
-                        end
-                    end
+            for index, NPC in ipairs(npcs) do
+                if quest:FindFirstChild("TaskBar").Description:match(NPC.Name) then
+                    updateQuest(NPC.Name)
+                    table.remove(quests, quests[index])
                 end
             end
         end
     end
+
+    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting tasks into different lists
 end
 
 do
+    local autoQuest = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
+
+    autoQuest:OnChanged(function()
+        if Options.autoQuestToggle.Value == true then
+            repeat
+                task.wait()
+                autoQuest()
+            until Options.autoQuestToggle.Value == false
+        end
+    end)
+
     Tabs.autoQuestTab:AddButton({
         Title = "Check Quest",
         Description = "Checks quest status",
