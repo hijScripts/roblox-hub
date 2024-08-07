@@ -101,7 +101,7 @@ local function goToLocation(locationPos)
 
     if not path then
         local tweenService = game:GetService("TweenService")
-        local tweenInfo = TweenInfo.new(5)
+        local tweenInfo = TweenInfo.new(3)
         local target = {Position = locationPos + Vector3.new(0, 5, 0)}
 
         local tween = tweenService:Create(humanoidRoot, tweenInfo, target)
