@@ -404,6 +404,7 @@ local function autoQuest(npc)
                 table.insert(quests, quest)
             end
         end
+        print(#quests)
     else
         print("No quest found, accepting one now.")
         updateQuest(npc)
@@ -414,6 +415,7 @@ local function autoQuest(npc)
         if checkQuestStatus(quest) then
             print("Quest completed! Finding NPC of quest.")
             for index, NPC in ipairs(npcs) do
+                print(NPC.Name, quest:FindFirstChild("TaskBar").Description.ContentText)
                 if quest:FindFirstChild("TaskBar").Description.ContentText:match(NPC.Name) then
                     print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
                     updateQuest(NPC.Name)
