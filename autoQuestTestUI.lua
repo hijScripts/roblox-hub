@@ -75,6 +75,177 @@ for index, ball in ipairs(game.Workspace.BoostBalls:GetChildren()) do
     end
 end
 
+-- Functions to move character to given position
+local function calcPath(pos)
+    local path = PathfindingService:CreatePath({
+        Costs = {
+
+        }
+    })
+
+    local success, errorMessage
+    local RETRY_NUM = 0
+
+    -- Retrying this as network issues can cause it to fail initially.
+    repeat
+        RETRY_NUM = RETRY_NUM + 1
+
+        success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, pos)
+
+        if not success then -- if it fails, print to console and then retry
+            print("Pathfind compute error: " .. errorMessage)
+        end
+    until success == true or RETRY_NUM > MAX_RETRIES
+
+    if success then
+        if path.Status == Enum.PathStatus.Success then
+            return path
+        else
+            local RETRY_NUM = 0
+
+            -- Retrying again as it is no longer network issue, it's humanoidRoot.Position issue
+            repeat
+                RETRY_NUM = RETRY_NUM + 1
+                print("not close enough")
+
+                local humanPos = humanoidRoot.Position
+
+                humanoid:MoveTo(humanPos + Vector3.new(0, 0, -5)) -- relocationg before recomputing
+                humanoid.MoveToFinished:Wait()
+
+                local newPos = humanoidRoot.Position
+
+                if math.floor(newPos.Z) == math.floor(humanPos.Z) then
+                    humanoid:MoveTo(humanPos + Vector3.new(-5, 0, 0)) -- relocationg before recomputing
+                    humanoid.MoveToFinished:Wait()
+                end
+
+                path:ComputeAsync(humanoidRoot.Position, pos)
+
+            until path.Status == Enum.PathStatus.Success or RETRY_NUM > MAX_RETRIES
+
+            if path.Status == Enum.PathStatus.Success then
+                return path
+            else
+                print("Cannot compute path, tweening instead...")
+                return nil
+            end
+        end
+    else
+        print("Pathfind compute error: " .. errorMessage)
+        return nil
+    end
+end
+
+local function goToLocation(locationPos)
+    local path = calcPath(locationPos)
+
+    if not path then
+        local tweenService = game:GetService("TweenService")
+        local tweenInfo = TweenInfo.new(3)
+        local target = {Position = locationPos + Vector3.new(0, 5, 0)}
+
+        local tween = tweenService:Create(humanoidRoot, tweenInfo, target)
+
+        tween:Play()
+    end
+
+    local reachedConnection
+    local pathBlockedConnection
+    local currentWaypointIndex = 1
+    local nextWaypointIndex = 2
+    local ballParts = {}
+
+    local waypoints = path:GetWaypoints()
+
+    for index, waypoint in ipairs(waypoints) do
+        -- spawn dots to destination
+        task.wait()
+        local part = Instance.new("Part")
+        part.Name = "GuideBall"
+        part.Shape = "Ball"
+        part.Color = Color3.new(255, 0, 0)
+        part.Material = "Neon"
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+
+        table.insert(ballParts, part)
+    end
+
+    for index, waypoint in ipairs(waypoints) do
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToLocation(locationPos)
+            end
+        end)
+            
+        -- delete the ball
+        ballParts[currentWaypointIndex]:Destroy()
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
+
+        nextWaypointIndex = nextWaypointIndex + 1
+    end
+
+    -- repeat task.wait() until we can meet a condition
+end
+
+local function goToItem(itemPos)
+    local path = calcPath(itemPos)
+
+    local reachedConnection
+    local pathBlockedConnection
+    local currentWaypointIndex = 1
+    local nextWaypointIndex = currentWaypointIndex + 1
+
+    local waypoints = path:GetWaypoints()
+
+    for index, waypoint in ipairs(waypoints) do
+
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToItem(itemPos)
+            end
+        end)
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+        nextWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
+    end
+
+    -- repeat task.wait() until we can meet a condition
+end
+
 -- Get Selected Menu frame
 local function getFrame(name)
     for index, option in ipairs(menuOptions) do
@@ -138,23 +309,118 @@ local function clickMouse(x, y)
     click:SendMouseButtonEvent(x, y, 0, false, nil, 1)
 end
 
--- Checking for quests
+-- Opens quest tab and checks for quests
 local function checkForQuest()
     local questFrame = getFrame("Quests")
-    local quests = questFrame.Content:GetChildren()
+    local questContent = questFrame.Content:GetChildren()
 
-    if #quests <= 0 then
+    if #questContent <= 0 then -- If length 0 then quest tab will be opened.
         clickMouse(84, 105)
     end
+
+    local quests = questContent.Frame:GetChildren()
+
+    if #quests <= 0 then -- If no quests, returning false
+        return false
+    end
+
+    return true
+
 end
 
--- Checking status of a quest
-local function checkIfCompleted(task)
+-- Checking status of a task
+local function checkTaskStatus(task)
     if #task.FillBar:GetChildren() >= 1 then
         return true
     end
 
     return false
+end
+
+-- checking status of a quest
+local function checkQuestStatus(quest)
+    local tasks = quest:GetChildren()
+
+    if #tasks > 0 then
+        for index, task in tasks do
+            if checkTaskStatus(task) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- Function to accept and claim quests.
+local function updateQuest(npc)
+    for index, NPC in ipairs(npcs) do
+        if NPC.Name == npc then -- going to selected NPC
+            goToLocation(NPC.Circle.Position)
+        end
+
+        if player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 then
+            
+        end
+    end
+end
+
+-- Auto Quest
+local function autoQuest(npc)
+
+    -- Quest Frame & List of all Quests and Tasks
+    local questFrame = getFrame("Quests")
+    local quests
+    local taskList
+
+
+    if checkForQuest() then
+        quests = questFrame.Content.Frame:GetChildren():match("QuestBox")
+    end
+
+    if #quests <= 0 then
+        updateQuest(npc)
+    end
+
+
+    for index, quest in ipairs(questList) do
+        local questTasks = quest:GetChildren() -- List of all tasks for related quest
+
+        for index, task in questTasks do
+            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
+                table.insert(taskList, task) -- Adding each individual task to list
+            end
+        end
+    end
+
+    -- 1. Get the tasks required
+    local mobTasks, fieldTasks, foodQuests = taskFinder()
+
+    -- 2. Complete field tasks
+    for index, fieldTask in ipairs(fieldTasks) do
+        for index, field in ipairs(fields) do
+            if string.find(fieldTask, field.Name:match("^([%w]+)")) then
+                print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
+                for index, task in ipairs(taskList) do
+                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
+                        if string.find(task.Description.ContentText, field.Name) then
+                            print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
+                            if not checkIfCompleted(task) then
+                                print("going to field")
+                                goTo(field.Position)
+                                repeat
+                                    task.wait()
+                                    autoFarm()
+                                    task.wait()
+                                    if Options.autoSellToggle.Value == true then autoSell() end
+                                until checkIfCompleted(task)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 do
