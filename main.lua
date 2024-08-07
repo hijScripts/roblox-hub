@@ -729,7 +729,7 @@ local function autoQuest()
 
                     repeat
                         task.wait()
-                        pollen = player.CoreStats.Pollen.Value
+                        local newPollen = player.CoreStats.Pollen.Value
                         local pos = humanoidRoot.Position
 
                         if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
@@ -739,7 +739,7 @@ local function autoQuest()
                         goToRandomPoint()
 
                         autoFarm()
-                    until pollen == pollen + tonumber(pollenNeeded)
+                    until pollen + tonumber(pollenNeeded) < newPollen
 
                     break
                 elseif fieldTask:match("Red") then
@@ -756,7 +756,7 @@ local function autoQuest()
 
                     repeat
                         task.wait()
-                        pollen = player.CoreStats.Pollen.Value
+                        local newPollen = player.CoreStats.Pollen.Value
 
                         if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
 
@@ -765,7 +765,7 @@ local function autoQuest()
                         goToRandomPoint()
 
                         autoFarm()
-                    until pollen == pollen + tonumber(pollenNeeded)
+                    until pollen + tonumber(pollenNeeded) < newPollen
 
                     break
                 elseif fieldTask:match("Blue") then
@@ -782,7 +782,7 @@ local function autoQuest()
 
                     repeat
                         task.wait()
-                        pollen = player.CoreStats.Pollen.Value
+                        local newPollen = player.CoreStats.Pollen.Value
 
                         if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
 
@@ -791,7 +791,7 @@ local function autoQuest()
                         goToRandomPoint()
 
                         autoFarm()
-                    until pollen == pollen + tonumber(pollenNeeded)
+                    until pollen + tonumber(pollenNeeded) < newPollen
 
                     break
                 elseif fieldTask:match("White") then
@@ -808,7 +808,7 @@ local function autoQuest()
 
                     repeat
                         task.wait()
-                        pollen = player.CoreStats.Pollen.Value
+                        local newPollen = player.CoreStats.Pollen.Value
 
                         if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
 
@@ -817,7 +817,7 @@ local function autoQuest()
                         goToRandomPoint()
 
                         autoFarm()
-                    until pollen == pollen + tonumber(pollenNeeded)
+                    until pollen + tonumber(pollenNeeded) < newPollen
                     break
                 end
             end
