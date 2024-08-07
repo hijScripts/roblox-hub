@@ -415,7 +415,7 @@ do
         if Options.autoQuestToggle.Value == true then
             repeat
                 task.wait()
-                autoQuest()
+                autoQuest("Bee Bear")
             until Options.autoQuestToggle.Value == false
         end
     end)
