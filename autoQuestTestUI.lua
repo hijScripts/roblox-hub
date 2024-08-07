@@ -322,6 +322,7 @@ local function checkForQuest()
 
         repeat -- letting frame load before continuing
             task.wait()
+            local questContent = questFrame.Content:GetChildren()
         until #questContent > 0
     end
 
