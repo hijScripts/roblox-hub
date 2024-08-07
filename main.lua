@@ -240,7 +240,7 @@ local function taskSorter()
 end
 
 -- Auto Quest
-local function autoQuest(autoClaim)
+local function autoQuest()
 
     -- Quest Frame & List of all Quests and Tasks
     local questFrame = getFrame("Quests")
@@ -264,28 +264,26 @@ local function autoQuest(autoClaim)
         updateQuest("Black Bear")
     end
 
-    if autoClaim == true then
-        print("Going over all quests to check for any completed ones.")
-        for index, quest in ipairs(quests) do -- claiming any quests completed
-            if checkQuestStatus(quest) then
-                print("Quest completed! Finding NPC of quest.")
-                for index, NPC in ipairs(npcs) do
-                    print(index)
-                    -- Remove all numbers from NPC.Name
-                    local modifiedName = NPC.Name:gsub("%d+", "")
+    print("Going over all quests to check for any completed ones.")
+    for index, quest in ipairs(quests) do -- claiming any quests completed
+        if checkQuestStatus(quest) then
+            print("Quest completed! Finding NPC of quest.")
+            for index, NPC in ipairs(npcs) do
+                print(index)
+                -- Remove all numbers from NPC.Name
+                local modifiedName = NPC.Name:gsub("%d+", "")
 
-                    -- Trim leading and trailing whitespace
-                    modifiedName = modifiedName:match("^%s*(.-)%s*$")
+                -- Trim leading and trailing whitespace
+                modifiedName = modifiedName:match("^%s*(.-)%s*$")
 
-                    if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
-                        print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
-                        updateQuest(NPC.Name)
+                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
+                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
+                    updateQuest(NPC.Name)
 
-                        print("Removing quest from table")
-                        table.remove(quests, index)
+                    print("Removing quest from table")
+                    table.remove(quests, index)
 
-                        break -- breaking out of NPC loop as quest is completed
-                    end
+                    break -- breaking out of NPC loop as quest is completed
                 end
             end
         end
@@ -815,11 +813,6 @@ do
         end
     end)
 
-    -- field selection script
-    fieldDropdown:OnChanged(function(value)
-        print("Selected: " .. value)
-    end)
-
     -- Auto swing script
     swingToggle:OnChanged(function()
         if Options.autoSwingToggle.Value == true and Options.autoFarmToggle.Value == true then
@@ -843,57 +836,20 @@ do
         end
     end)
 
-    -- Auto pickup loot script
-    lootToggle:OnChanged(function()
-        if Options.autoLootToggle.Value == true then
-            print("Auto pickup loot toggled on.")
-        else
-            print("Auto pickup loot toggled off.")
-        end
-    end)
-
-    -- Auto pickup loot script
-    cloudToggle:OnChanged(function()
-        if Options.autoFollowCloud.Value == true then
-            print("Auto follow cloud toggled on.")
-        else
-            print("Auto follow cloud toggled off.")
-        end
-    end)
-
 -- Auto Quest Tab --
     -- Auto Quest Toggle
     local questToggle = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
 
-    -- Auto Claim Quest Toggle
-    local claimToggle = Tabs.autoQuestTab:AddToggle("autoClaimToggle", {Title = "Auto Claim Quest [BETA]", Default = false})
-
     -- Auto quest script
     questToggle:OnChanged(function()
-        if Options.autoQuestToggle.Value == true then
+        if Options.autoQuestToggle.Value and Options.autoQuestToggle.Value == true then
             if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
             repeat
                 task.wait()
-                autoQuest(Options.autoClaimToggle.Value)
+                autoQuest()
             until Options.autoQuestToggle.Value == false
-        end
-    end)
-
-    -- Auto claim script
-    claimToggle:OnChanged(function()
-        if Options.autoClaimToggle.Value == true then
-            print("Auto claim quest toggled on.")
         else
-            print("Auto claim quest toggled off.")
-        end
-    end)
-
-    -- Auto avoid vicious script
-    avoidVicious:OnChanged(function()
-        if Options.autoAvoidVicious.Value == true then
-            print("Auto avoid vicious toggled on.")
-        else
-            print("Auto avoid vicious toggled off.")
+            task.wait(1)
         end
     end)
 
@@ -920,17 +876,14 @@ do
     -- Auto Boss Toggle
     local bossToggle = Tabs.autoMobTab:AddToggle("autoBossToggle", {Title = "Auto Kill Boss", Default = false})
 
-    -- auto boss dropdown
-    bossDropdown:OnChanged(function(value)
-        task.wait()
-    end)
-
     -- Auto boss toggle
     bossToggle:OnChanged(function()
-        if Options.autoBossToggle.Value == true then
+        if Options.autoBossToggle.Value and Options.autoBossToggle.Value == true then
             repeat
                 task.wait()
             until Options.autoBossToggle.Value == false
+        else
+            task.wait(1)
         end
     end)
 
