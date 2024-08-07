@@ -345,9 +345,11 @@ local function checkQuestStatus(quest)
     local tasks = quest:GetChildren()
 
     if #tasks > 0 then
-        for index, task in tasks do
-            if checkTaskStatus(task) then
-                return true
+        for index, task in ipairs(tasks) do
+            if task.Name:match("TaskBar") then
+                if checkTaskStatus(task) then
+                    return true
+                end
             end
         end
     end
