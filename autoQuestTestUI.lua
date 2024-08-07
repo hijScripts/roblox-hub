@@ -391,8 +391,12 @@ local function autoQuest(npc)
 
     print("Checking status of quests.")
     if checkForQuest() then
-        print("Quests Found!")
-        quests = questFrame.Content.Frame:GetChildren():match("QuestBox")
+        print("Quests Found! Adding to quests table.")
+        for index, quest in questFrame.Content.Frame:GetChildren() do
+            if quest.Name:match("QuestBox") then
+                table.insert(quests, quest)
+            end
+        end
     else
         print("No quest found, accepting one now.")
         updateQuest(npc)
