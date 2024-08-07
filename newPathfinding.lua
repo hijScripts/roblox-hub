@@ -86,8 +86,49 @@ local function calcPath(pos)
     end
 end
 
-local function onPathBlocked(path, blockedWaypoint)
+local function onPathBlocked(locationPos)
+    local newPath = calcPath(locationPos)
+    local waypoints = newPath:GetWaypoints()
 
+    local ballParts = {}
+    local currentWaypointIndex = 1
+
+    for index, waypoint in ipairs(waypoints) do
+        -- spawn dots to destination
+        task.wait()
+        local part = Instance.new("Part")
+        part.Name = "GuideBall"
+        part.Shape = "Ball"
+        part.Color = Color3.new(255, 0, 0)
+        part.Material = "Neon"
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+
+        table.insert(ballParts, part)
+    end
+
+    for index, waypoint in ipairs(waypoints) do
+        -- delete the ball
+        ballParts[currentWaypointIndex]:Destroy()
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
+
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        if newPath.Blocked then onPathBlocked(locationPos) end
+    end
 end
 
 local function goToLocation(locationPos)
@@ -134,6 +175,7 @@ local function goToLocation(locationPos)
         humanoid.MoveToFinished:Wait()
 
         -- need to catch blocked waypoints then call function onPathBlocked()
+        if path.Blocked then onPathBlocked(locationPos) end
     end
 
     -- repeat task.wait() until we can meet a condition
@@ -144,13 +186,22 @@ local function goToItem(itemPos)
 
     local reachedConnection
     local pathBlockedConnection
+    local currentWaypointIndex = 1
 
     local waypoints = path:GetWaypoints()
 
     for index, waypoint in ipairs(waypoints) do
-        -- walk to item
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
 
-        -- need to catch blocked waypoints then call function onPathBlocked()
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
+        -- walk to waypoint
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
     end
 
     -- repeat task.wait() until we can meet a condition
