@@ -3,7 +3,7 @@ local workspace = game:GetService("Workspace")
 local player = game:GetService("Players").LocalPlayer
 local character = player.Character
 local humanoid = character:FindFirstChild("Humanoid")
-local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+local humanoidRoot = character:WaitForChild("HumanoidRootPart") 
 local virtualUser = game:GetService("VirtualUser")
 
 -- Path Variables
