@@ -87,7 +87,7 @@ for index, ball in ipairs(game.Workspace.BoostBalls:GetChildren()) do
 end
 
 -- Get Selected Menu frame
-function getFrame(name)
+local function getFrame(name)
     for index, option in ipairs(menuOptions) do
         if option.Name == name then
             return option
@@ -96,7 +96,7 @@ function getFrame(name)
 end
 
 -- Auto Farm Function
-function autoFarm() -- weapon cd maybe? 
+local function autoFarm() -- weapon cd maybe? 
     local pos = humanoidRoot.Position
     
     if touchingFlower(pos) then
@@ -105,7 +105,7 @@ function autoFarm() -- weapon cd maybe?
 end
 
 -- Return all tasks organized into categories
-function taskFinder()
+local function taskFinder()
     
     -- Tables for categorized tasks
     local mobQuests = {}
@@ -166,7 +166,7 @@ function taskFinder()
 end
 
 -- Checking status of a quest
-function checkIfCompleted(task)
+local function checkIfCompleted(task)
     if #task.FillBar:GetChildren() >= 1 then
         return true
     end
@@ -175,7 +175,7 @@ function checkIfCompleted(task)
 end
 
 -- Auto Quest
-function autoQuest()
+local function autoQuest()
 
     -- Quest Frame & List of all Questse
     local questFrame = getFrame("Quests")
@@ -255,7 +255,7 @@ function autoQuest()
 end
 
 -- Auto Holiday Quest Function
-function claimQuest(npc)
+local function claimQuest(npc)
 
     local questNum = 0 -- number to iterate with
     while questNum <= 20 do
@@ -274,7 +274,7 @@ function claimQuest(npc)
 end
 
 -- Check all quest status
-function getQuestStatus()
+local function getQuestStatus()
     local questFrame = getFrame("Quests")
     local quests = questFrame.Content:FindFirstChild("Frame"):GetChildren()
     
@@ -489,7 +489,7 @@ end
 
 
 -- Check capacity of backpack
-function backpackFull()
+local function backpackFull()
     if player.CoreStats.Pollen.Value / player.CoreStats.Capacity.Value >= 1 then
         return true
     end
@@ -498,7 +498,7 @@ function backpackFull()
 end
 
 -- Auto Sell Function
-function autoSell() 
+local function autoSell() 
     if backpackFull() then -- Backpack capacity check
         local pos = humanoidRoot.Position
 
@@ -522,7 +522,7 @@ function autoSell()
 end
 
 -- Populate list with all fields
-function populateList(list)
+local function populateList(list)
     local itemList = {"Empty"} -- list to return of all fields
 
     for index, item in ipairs(list) do
@@ -533,7 +533,7 @@ function populateList(list)
 end
 
 -- Find and Claim a Hive function
-function claimHive()
+local function claimHive()
     for hiveID=1, #hives do
         local args = {
             [1] = hiveID
@@ -543,7 +543,7 @@ function claimHive()
 end
 
 -- Check if hive exists
-function checkOwnsHive()
+local function checkOwnsHive()
     for index, hive in ipairs(hives) do
         if tostring(hive.Owner.Value) == player.Name then
             return true
@@ -554,7 +554,7 @@ function checkOwnsHive()
 end
 
 -- Checks if in field
-function inField(farmField)
+local function inField(farmField)
     for index, field in ipairs(fields) do
         if field.Name == farmField then
             local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
@@ -568,7 +568,7 @@ function inField(farmField)
 end
 
 -- Checks for nearby monster
-function checkForMonster()
+local function checkForMonster()
     -- Variable for mobs
     local mobFolder = workspace.Monsters
     local mobs = mobFolder:GetChildren()
@@ -588,7 +588,7 @@ function checkForMonster()
 end
 
 -- Function to check for vicious bee
-function viciousNearby()
+local function viciousNearby()
     local mobFolder = workspace.Monsters
     local mobs = mobFolder:GetChildren()
 
@@ -617,7 +617,7 @@ end
 -- Function to check for collectibles
 
 -- Auto collect loot
-function collectLoot()
+local function collectLoot()
     local collectiblesFolder = workspace.Collectibles
     local collectibles = collectiblesFolder:GetChildren()
     local pos = humanoidRoot.Position
@@ -641,7 +641,7 @@ end
 -- auto use abilities
 
 -- Function to follow clouds
-function followCloud()
+local function followCloud()
     local cloudFolder = workspace.Clouds
     local clouds = cloudFolder:GetChildren()
     local pos = humanoidRoot.Position
@@ -661,7 +661,7 @@ function followCloud()
 end
 
 -- Check if item is inside a flower tile
-function touchingFlower(pos)
+local function touchingFlower(pos)
 
     for index, flower in ipairs(flowers) do
         if (pos - flower.Position).Magnitude <= 4 then
@@ -677,7 +677,7 @@ function touchingFlower(pos)
 end
 
 -- Check if human is inside a gadget
-function touchingGadget(pos)
+local function touchingGadget(pos)
     
     for index, gadget in ipairs(gadgets) do
         if (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
@@ -689,7 +689,7 @@ function touchingGadget(pos)
 end
 
 -- Move to random point in field
-function goToRandomPoint()
+local function goToRandomPoint()
     local pos = humanoidRoot.Position
     local newPos -- new POS to return
 
