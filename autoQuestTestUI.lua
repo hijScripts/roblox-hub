@@ -46,10 +46,6 @@ local fields = fieldsFolder:GetChildren()
 local flowersFolder = workspace.Flowers
 local flowers = flowersFolder:GetChildren()
 
--- Variables used for functions handling NPCs
-local npcFolder = workspace.NPCs
-local npcs = npcFolder:GetChildren()
-
 -- Gadget Variables
 local gadgetsFolder = workspace.Gadgets
 local gadgets = gadgetsFolder:GetChildren()
@@ -313,6 +309,10 @@ end
 
 -- Opens quest tab and checks for quests
 local function checkForQuest()
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
     local questFrame = getFrame("Quests")
     local questContent = questFrame.Content:GetChildren()
 
@@ -340,30 +340,46 @@ end
 local function checkTaskStatus(task)
     if #task.FillBar:GetChildren() >= 1 then
         return true
+    else
+        return false
     end
-
-    return false
 end
 
 -- checking status of a quest
 local function checkQuestStatus(quest)
-    local tasks = quest:GetChildren()
 
-    if #tasks > 0 then
-        for index, task in ipairs(tasks) do
-            if task.Name:match("TaskBar") then
-                if checkTaskStatus(task) then
-                    return true
-                end
-            end
+    local tasks = {}
+    
+    for index, task in ipairs(quest:GetChildren()) do
+        if task.Name == "TaskBar" then
+            table.insert(tasks, task)
         end
     end
 
-    return false
+    local amountToBeCompleted = #tasks
+    local tasksCompleted = 0
+
+    for index, task in ipairs(tasks) do
+        if checkTaskStatus(task) then
+            tasksCompleted = tasksCompleted + 1
+        end
+    end
+
+    print("Amount of tasks completed:", tasksCompleted, "/", amountToBeCompleted)
+    if tasksCompleted == amountToBeCompleted then
+        return true
+    else
+        return false
+    end
 end
 
 -- Function to accept and claim quests.
 local function updateQuest(npc)
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+
     for index, NPC in ipairs(npcs) do
         if NPC.Name == npc then -- going to selected NPC
             goToLocation(NPC.Circle.Position)
@@ -396,6 +412,10 @@ local function autoQuest(npc)
     local quests = {}
     local taskList
 
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+
     print("Checking status of quests.")
     if checkForQuest() then
         print("Quests Found! Adding to quests table.")
@@ -404,7 +424,6 @@ local function autoQuest(npc)
                 table.insert(quests, quest)
             end
         end
-        print(#quests)
     else
         print("No quest found, accepting one now.")
         updateQuest(npc)
@@ -415,8 +434,14 @@ local function autoQuest(npc)
         if checkQuestStatus(quest) then
             print("Quest completed! Finding NPC of quest.")
             for index, NPC in ipairs(npcs) do
-                print(NPC.Name, quest:FindFirstChild("TaskBar").Description.ContentText)
-                if quest:FindFirstChild("TaskBar").Description.ContentText:match(string.gsub(NPC.Name, "%d*", "")) then
+
+                -- Remove all numbers from NPC.Name
+                local modifiedName = NPC.Name:gsub("%d+", "")
+
+                -- Trim leading and trailing whitespace
+                modifiedName = modifiedName:match("^%s*(.-)%s*$")
+
+                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
                     print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
                     updateQuest(NPC.Name)
 
