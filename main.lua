@@ -240,7 +240,7 @@ local function taskSorter()
 end
 
 -- Auto Quest
-local function autoQuest(npc)
+local function autoQuest(autoClaim)
 
     -- Quest Frame & List of all Quests and Tasks
     local questFrame = getFrame("Quests")
@@ -261,29 +261,31 @@ local function autoQuest(npc)
         end
     else
         print("No quest found, accepting one now.")
-        updateQuest(npc)
+        updateQuest("Black Bear")
     end
 
-    print("Going over all quests to check for any completed ones.")
-    for index, quest in ipairs(quests) do -- claiming any quests completed
-        if checkQuestStatus(quest) then
-            print("Quest completed! Finding NPC of quest.")
-            for index, NPC in ipairs(npcs) do
-                print(index)
-                -- Remove all numbers from NPC.Name
-                local modifiedName = NPC.Name:gsub("%d+", "")
+    if autoClaim == true then
+        print("Going over all quests to check for any completed ones.")
+        for index, quest in ipairs(quests) do -- claiming any quests completed
+            if checkQuestStatus(quest) then
+                print("Quest completed! Finding NPC of quest.")
+                for index, NPC in ipairs(npcs) do
+                    print(index)
+                    -- Remove all numbers from NPC.Name
+                    local modifiedName = NPC.Name:gsub("%d+", "")
 
-                -- Trim leading and trailing whitespace
-                modifiedName = modifiedName:match("^%s*(.-)%s*$")
+                    -- Trim leading and trailing whitespace
+                    modifiedName = modifiedName:match("^%s*(.-)%s*$")
 
-                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
-                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
-                    updateQuest(NPC.Name)
+                    if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
+                        print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
+                        updateQuest(NPC.Name)
 
-                    print("Removing quest from table")
-                    table.remove(quests, index)
+                        print("Removing quest from table")
+                        table.remove(quests, index)
 
-                    break -- breaking out of NPC loop as quest is completed
+                        break -- breaking out of NPC loop as quest is completed
+                    end
                 end
             end
         end
@@ -618,8 +620,6 @@ local function viciousNearby()
     end
 end
 
--- Function to check for collectibles
-
 -- Auto collect loot
 local function collectLoot()
     local collectiblesFolder = workspace.Collectibles
@@ -636,13 +636,9 @@ local function collectLoot()
     end
 end
 
--- Function to auto collect dropped items
-
 -- Auto summon eggs
 
 -- shop TPs
-
--- auto use abilities
 
 -- Function to follow clouds
 local function followCloud()
@@ -877,7 +873,8 @@ do
         if Options.autoQuestToggle.Value == true then
             if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
             repeat
-                autoQuest()
+                task.wait()
+                autoQuest(Options.autoClaimToggle.Value)
             until Options.autoQuestToggle.Value == false
         end
     end)
@@ -885,10 +882,9 @@ do
     -- Auto claim script
     claimToggle:OnChanged(function()
         if Options.autoClaimToggle.Value == true then
-            repeat
-                task.wait(0.1)
-                getQuestStatus()
-            until Options.autoClaimToggle.Value == false
+            print("Auto claim quest toggled on.")
+        else
+            print("Auto claim quest toggled off.")
         end
     end)
 

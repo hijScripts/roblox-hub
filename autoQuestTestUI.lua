@@ -442,7 +442,7 @@ local function taskSorter()
 end
 
 -- Auto Quest
-local function autoQuest(npc)
+local function autoQuest(autoClaim)
 
     -- Quest Frame & List of all Quests and Tasks
     local questFrame = getFrame("Quests")
@@ -463,29 +463,31 @@ local function autoQuest(npc)
         end
     else
         print("No quest found, accepting one now.")
-        updateQuest(npc)
+        updateQuest("Black Bear")
     end
 
-    print("Going over all quests to check for any completed ones.")
-    for index, quest in ipairs(quests) do -- claiming any quests completed
-        if checkQuestStatus(quest) then
-            print("Quest completed! Finding NPC of quest.")
-            for index, NPC in ipairs(npcs) do
-                print(index)
-                -- Remove all numbers from NPC.Name
-                local modifiedName = NPC.Name:gsub("%d+", "")
+    if autoClaim == true then
+        print("Going over all quests to check for any completed ones.")
+        for index, quest in ipairs(quests) do -- claiming any quests completed
+            if checkQuestStatus(quest) then
+                print("Quest completed! Finding NPC of quest.")
+                for index, NPC in ipairs(npcs) do
+                    print(index)
+                    -- Remove all numbers from NPC.Name
+                    local modifiedName = NPC.Name:gsub("%d+", "")
 
-                -- Trim leading and trailing whitespace
-                modifiedName = modifiedName:match("^%s*(.-)%s*$")
+                    -- Trim leading and trailing whitespace
+                    modifiedName = modifiedName:match("^%s*(.-)%s*$")
 
-                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
-                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
-                    updateQuest(NPC.Name)
+                    if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
+                        print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
+                        updateQuest(NPC.Name)
 
-                    print("Removing quest from table")
-                    table.remove(quests, index)
+                        print("Removing quest from table")
+                        table.remove(quests, index)
 
-                    break -- breaking out of NPC loop as quest is completed
+                        break -- breaking out of NPC loop as quest is completed
+                    end
                 end
             end
         end
