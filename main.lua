@@ -36,7 +36,6 @@ local virtualUser = game:GetService("VirtualUser")
 local PathfindingService = game:GetService("PathfindingService")
 local MAX_RETRIES = 5
 local RETRY_COOLDOWN = 1
-local YIELDING = false
 
 -- -- Tween Variables
 -- local tweenService = game:GetService("TweenService")
@@ -77,7 +76,6 @@ end)
 -- Allowing pathfinding to go through invisible walls / objects / etc
 for index, ballBarrier in ipairs(game.workspace:GetDescendants()) do
     if ballBarrier:IsA("BasePart") and ballBarrier.CollisionGroup == "BoostBallBarrier" then
-        print("Found barrier")
         ballBarrier.CanCollide = false
     end
 end
@@ -100,7 +98,7 @@ end
 -- Auto Farm Function
 function autoFarm() -- weapon cd maybe? 
     local pos = humanoidRoot.Position
-
+    
     if touchingFlower(pos) then
         require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
    end
@@ -320,72 +318,67 @@ end
 
 -- Function to move character to given position
 function goTo(targetPos)
+    local pos = humanoidRoot.Position
     local path = PathfindingService:CreatePath()
-    local reachedConnection
-    local pathBlockedConnection
 
     local RETRY_NUM = 0
     local success, errorMessage
+    local reachedWaypoint
 
     repeat
         RETRY_NUM = RETRY_NUM + 1 
-        success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, targetPos)
-        print("success: ", success)
+
+        success, errorMessage = pcall(function()
+            path:ComputeAsync(humanoidRoot.Position, targetPos)
+        end)
+
         if not success then -- if fails, warn console
             print("Pathfind compute path error: " .. errorMessage)
             task.wait(RETRY_COOLDOWN)
         end
     until success == true or RETRY_NUM > MAX_RETRIES
-
+    
     if success then
         if path.Status == Enum.PathStatus.Success then
             local waypoints = path:GetWaypoints()
-            local currentWaypointIndex = 2 -- not 1, because 1 is the waypoint of the starting position
-
-            if not reachedConnection then
-                reachedConnection = humanoid.MoveToFinished:Connect(function(reached)
-                    if reached and currentWaypointIndex < #waypoints then
-                        currentWaypointIndex = currentWaypointIndex + 1
-
-                        humanoid:MoveTo(waypoints[currentWaypointIndex].Position)
-                        if waypoints[currentWaypointIndex].Action == Enum.PathWaypointAction.Jump then
-                            humanoid.Jump = true
-                        end
-                    else
-                        reachedConnection:Disconnect()
-                        pathBlockedConnection:Disconnect()
-                        reachedConnection = nil -- you need to manually set this to nil because calling disconnect function does not make the variable to be nil.
-                        pathBlockedConnection = nil
-                    end
-                end)
-            end
-
-            pathBlockedConnection = path.Blocked:Connect(function(waypointNumber)
-                if waypointNumber > currentWaypointIndex then -- blocked path is ahead of the BoostBallBarrier
-                    -- reachedConnection:Disconnect()
-                    -- pathBlockedConnection:Disconnect()
-                    -- reachedConnection = nil
-                    -- pathBlockedConnection = nil
-                    goTo(targetPos) -- new path
-                end
-            end)
             
-            humanoid:MoveTo(waypoints[currentWaypointIndex].Position) -- move to the nth waypoint
-            if waypoints[currentWaypointIndex].Action == Enum.PathWaypointAction.Jump then
-                humanoid.Jump = true
+            for index, waypoint in ipairs(waypoints) do
+                if waypoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid.Jump = true
+                end
+
+                humanoid:MoveTo(waypoint.Position)
+                reachedWaypoint = humanoid.MoveToFinished:Wait()
+
+                if not reachedWaypoint then
+                    repeat
+                        local newPos = humanoidRoot.Position
+
+                        humanoid:MoveTo(Vector3.new(newPos.X + 5, newPos.Y, newPos.Z))
+                        reachedWaypoint = humanoid.MoveToFinished:Wait()
+
+                        if humanoidRoot.Position.X == newPos.X then
+                            humanoid:MoveTo(Vector3.new(newPos.X, newPos.Y, newPos.Z + 5))
+                            reachedWaypoint = humanoid.MoveToFinished:Wait()
+                        end
+                    until reachedWaypoint
+                end
             end
+        else
+            print("Error:", errorMessage)
+            repeat
+                local newPos = humanoidRoot.Position
 
-        else -- if the path can't be computed between two points, do nothing!
-            print("Error:", path.Status)
+                humanoid:MoveTo(Vector3.new(5, 0, 0))
+
+                if humanoidRoot.Position.X == newPos.X then
+                    humanoid:MoveTo(Vector3.new(0, 0, 5))
+                end
+
+                path:ComputeAsync(pos, targetPos)
+            until path.Status == Enum.PathStatus.Success
         end
-    else -- this only runs IF the function has problems computing the path in its backend, NOT if a path can't be created between two points.
-        print("Pathfind compute retry maxed out, error: " .. errorMessage)
-        return
     end
-
-    repeat
-        task.wait()
-    until (humanoidRoot.Position - targetPos).Magnitude < 10
 end
 
 -- Check capacity of backpack
@@ -458,7 +451,7 @@ function inField(farmField)
     for index, field in ipairs(fields) do
         if field.Name == farmField then
             local mag = math.floor((humanoidRoot.Position - field.Position).Magnitude) -- getting distance between humanoid and field centre
-            if mag <= 45 and touchingFlower(humanoidRoot.Position) then
+            if mag <= 100 and touchingFlower(humanoidRoot.Position) then
                 return true
             end
         end
@@ -505,7 +498,7 @@ function viciousNearby()
                         goTo(player.SpawnPos.Value.Position)
 
                         repeat
-                            task.wait(1)
+                            task.wait()
                         until not mob:FindFirstChild("HumanoidRootPart")
                     end
                 end
@@ -524,12 +517,9 @@ function collectLoot()
 
     if #collectibles > 0 then
         for index, collectible in ipairs(collectibles) do
-            local mag = math.floor((humanoidRoot.Position - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
-            if mag <= 30 and touchingFlower(collectible.Position) then
+            local mag = math.floor((pos - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
+            if mag <= 50 and touchingFlower(collectible.Position) then
                 goTo(collectible.Position)
-                repeat
-                    task.wait()
-                until collectible.Parent == nil
             end
         end
     end
@@ -583,12 +573,30 @@ end
 function touchingGadget(pos)
     
     for index, gadget in ipairs(gadgets) do
-        if (pos - gadget.Position).Magnitude <= 4 then
+        if (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
             return true
         end
     end
 
     return false
+end
+
+-- Move to random point in field
+function goToRandomPoint()
+    local pos = humanoidRoot.Position
+    local newPos -- new POS to return
+
+    repeat -- generating new X & Y coords until they are within the field area
+        task.wait()
+
+        local randX = math.random(pos.X - 20, pos.X + 20)
+        local randZ = math.random(pos.Z - 20, pos.Z + 20)
+
+        newPos = Vector3.new(randX, pos.Y, randZ)
+
+    until touchingFlower(newPos)
+
+    goTo(newPos)
 end
 
 -- auto claim badge
@@ -691,16 +699,9 @@ do
                 if Options.autoSellToggle.Value == true then autoSell() end -- selling if backpack full
                 if Options.autoFollowCloud.Value == true then followCloud() end -- following first cloud in field
 
-                -- Stuck user check
-                task.wait()
-                if not inField(selectedField) or not touchingFlower(pos) then
-                    for index, field in ipairs(fields) do 
-                        if field.Name == newSelectedField then
-                            print("Returning user to " .. field.Name)
-                            goTo(field.Position)
-                        end
-                    end
-                end
+                -- Going to new POS within the field after all Checks
+                goToRandomPoint()
+
             until Options.autoFarmToggle.Value == false
         else
             print("Auto farm toggled off.")
@@ -844,6 +845,25 @@ do
             goTo(player.SpawnPos.Value.Position)
         end
     })
+
+    -- Field dropdown
+    local fieldTP = Tabs.teleportTab:AddDropdown("FieldTeleport", {
+        Title = "Select Field",
+        Values = populateList(fields),
+        Multi = false,
+        Default = 1
+    })
+
+
+    -- field on change
+    fieldTP:OnChanged(function(value)
+        for index, field in ipairs(fields) do
+            if field.Name == value then
+                goTo(field.Position)
+            end
+        end
+    end)
+
 end
 -- Update quests
 -- local args = {
