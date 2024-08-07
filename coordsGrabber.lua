@@ -1,5 +1,5 @@
 -- get the GUI element you care about
-local targetPart = game:GetService("Players").LocalPlayer.PlayerGui.ScreenGui.ActivateButton.KeyTag:FindFirstChild("GamepadButtonIcon")
+local targetPart = game:GetService("Players").LocalPlayer.PlayerGui.ScreenGui.NPC.CommandTag
 
 if targetPart then
     -- get the absolute position of the GUI element
