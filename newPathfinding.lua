@@ -11,10 +11,6 @@ local PathfindingService = game:GetService("PathfindingService")
 local MAX_RETRIES = 5
 local RETRY_COOLDOWN = 1
 
--- Tween Variables
-local tweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.New(3)
-
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
 local hives = hiveFolder:GetChildren()
@@ -59,7 +55,7 @@ local function calcPath(pos)
             print("Pathfind compute error: " .. errorMessage)
         end
 
-        print("Success: " .. success)
+        print("Success: ", success)
     until success == true or RETRY_NUM > MAX_RETRIES
 
     if success then
@@ -107,7 +103,7 @@ local function goToLocation(locationPos)
     for index, waypoint in ipairs(waypoints) do
         -- spawn dots to destination
         task.wait()
-        local part = Instance.new("part")
+        local part = Instance.new("Part")
         part.Name = "GuideBall"
         part.Shape = "Ball"
         part.Color = Color3.new(255, 0, 0)
