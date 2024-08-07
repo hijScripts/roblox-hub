@@ -54,8 +54,6 @@ local function calcPath(pos)
         if not success then -- if it fails, print to console and then retry
             print("Pathfind compute error: " .. errorMessage)
         end
-
-        print("Success: ", success)
     until success == true or RETRY_NUM > MAX_RETRIES
 
     if success then
@@ -67,9 +65,19 @@ local function calcPath(pos)
             -- Retrying again as it is no longer network issue, it's humanoidRoot.Position issue
             repeat
                 RETRY_NUM = RETRY_NUM + 1
+                print("not close enough")
 
-                humanoid:MoveTo(Vector3.new(0, 0, -3)) -- relocationg before recomputing
-                humanoid:MoveToFinished():Wait()
+                local humanPos = humanoidRoot.Position
+
+                humanoid:MoveTo(humanPos + Vector3.new(0, 0, -5)) -- relocationg before recomputing
+                humanoid.MoveToFinished:Wait()
+
+                local newPos = humanoidRoot.Position
+
+                if math.floor(newPos.Z) == math.floor(humanPos.Z) then
+                    humanoid:MoveTo(humanPos + Vector3.new(-5, 0, 0)) -- relocationg before recomputing
+                    humanoid.MoveToFinished:Wait()
+                end
 
                 path:ComputeAsync(humanoidRoot.Position, pos)
 
@@ -78,65 +86,33 @@ local function calcPath(pos)
             if path.Status == Enum.PathStatus.Success then
                 return path
             else
-                print("Pathfind compute error: " .. errorMessage)
+                print("Cannot compute path, tweening instead...")
+                return nil
             end
         end
     else
         print("Pathfind compute error: " .. errorMessage)
-    end
-end
-
-local function onPathBlocked(locationPos)
-    local newPath = calcPath(locationPos)
-    local waypoints = newPath:GetWaypoints()
-
-    local ballParts = {}
-    local currentWaypointIndex = 1
-
-    for index, waypoint in ipairs(waypoints) do
-        -- spawn dots to destination
-        task.wait()
-        local part = Instance.new("Part")
-        part.Name = "GuideBall"
-        part.Shape = "Ball"
-        part.Color = Color3.new(255, 0, 0)
-        part.Material = "Neon"
-        part.Size = Vector3.new(0.6, 0.6, 0.6)
-        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Parent = workspace
-
-        table.insert(ballParts, part)
-    end
-
-    for index, waypoint in ipairs(waypoints) do
-        -- delete the ball
-        ballParts[currentWaypointIndex]:Destroy()
-
-        -- update waypoint
-        currentWaypointIndex = currentWaypointIndex + 1
-
-        -- jump if needed
-        if waypoint.Action == Enum.PathWaypointAction.Jump then
-            humanoid.Jump = true
-        end
-
-        -- walk to waypoint
-        humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait()
-
-        -- need to catch blocked waypoints then call function onPathBlocked()
-        if newPath.Blocked then onPathBlocked(locationPos) end
+        return nil
     end
 end
 
 local function goToLocation(locationPos)
     local path = calcPath(locationPos)
 
+    if not path then
+        local tweenService = game:GetService("TweenService")
+        local tweenInfo = TweenInfo.new(5)
+        local target = {Position = locationPos + Vector3.new(0, 5, 0)}
+
+        local tween = tweenService:Create(humanoidRoot, tweenInfo, target)
+
+        tween:Play()
+    end
+
     local reachedConnection
     local pathBlockedConnection
     local currentWaypointIndex = 1
+    local nextWaypointIndex = 2
     local ballParts = {}
 
     local waypoints = path:GetWaypoints()
@@ -159,6 +135,16 @@ local function goToLocation(locationPos)
     end
 
     for index, waypoint in ipairs(waypoints) do
+        -- need to catch blocked waypoints then call function onPathBlocked()
+        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+            -- making sure obstacle is further ahead
+            if blockedWaypointIndex >= nextWaypointIndex then
+                pathBlockedConnection:Disconnect()
+                goToLocation(locationPos)
+            end
+        end)
+            
         -- delete the ball
         ballParts[currentWaypointIndex]:Destroy()
 
@@ -174,8 +160,7 @@ local function goToLocation(locationPos)
         humanoid:MoveTo(waypoint.Position)
         humanoid.MoveToFinished:Wait()
 
-        -- need to catch blocked waypoints then call function onPathBlocked()
-        if path.Blocked then onPathBlocked(locationPos) end
+        nextWaypointIndex = nextWaypointIndex + 1
     end
 
     -- repeat task.wait() until we can meet a condition
@@ -187,12 +172,25 @@ local function goToItem(itemPos)
     local reachedConnection
     local pathBlockedConnection
     local currentWaypointIndex = 1
+    local nextWaypointIndex = currentWaypointIndex + 1
 
     local waypoints = path:GetWaypoints()
 
     for index, waypoint in ipairs(waypoints) do
+
+        -- need to catch blocked waypoints then call function onPathBlocked()
+            pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+                -- making sure obstacle is further ahead
+                if blockedWaypointIndex >= nextWaypointIndex then
+                    pathBlockedConnection:Disconnect()
+                    goToItem(itemPos)
+                end
+            end)
+
         -- update waypoint
         currentWaypointIndex = currentWaypointIndex + 1
+        nextWaypointIndex = currentWaypointIndex + 1
 
         -- jump if needed
         if waypoint.Action == Enum.PathWaypointAction.Jump then
@@ -207,4 +205,4 @@ local function goToItem(itemPos)
     -- repeat task.wait() until we can meet a condition
 end
 
-goToLocation(player.SpawnPos.Value.Position)
+goToLocation(workspace.FlowerZones["Rose Field"].Position)
