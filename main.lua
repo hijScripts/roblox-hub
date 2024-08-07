@@ -45,6 +45,29 @@ local hives = hiveFolder:GetChildren()
 local fieldsFolder = workspace.FlowerZones
 local fields = fieldsFolder:GetChildren()
 
+local redFields = {
+    "Mushroom Field",
+    "Strawberry Field",
+    "Rose Field",
+    "Pepper Patch"
+}
+
+local blueFields = {
+    "Blue Flower Field",
+    "Bamboo Field",
+    "Pine Tree Forest",
+    "Stump Field"
+}
+
+local whiteFields = {
+    "Dandelion Field",
+    "Pineapple Patch",
+    "Pumpkin Patch",
+    "Coconut Field"
+}
+
+local colours = {"Red", "Blue", "White"}
+
 -- Variables used for functions handling FlowerZones
 local flowersFolder = workspace.Flowers
 local flowers = flowersFolder:GetChildren()
@@ -83,15 +106,6 @@ local function getFrame(name)
             return option
         end
     end
-end
-
--- Auto Farm Function
-local function autoFarm() -- weapon cd maybe? 
-    local pos = humanoidRoot.Position
-    
-    if touchingFlower(pos) then
-        require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
-   end
 end
 
 -- Using user's left click 
@@ -169,29 +183,6 @@ local function checkQuestStatus(quest)
     end
 end
 
--- Function to accept and claim quests.
-local function updateQuest(npc)
-
-    -- Variables used for functions handling NPCs
-    local npcFolder = workspace.NPCs
-    local npcs = npcFolder:GetChildren()
-
-    for index, NPC in ipairs(npcs) do
-        if NPC.Name == npc then -- going to selected NPC
-            goToLocation(NPC.Circle.Position)
-
-            clickMouse(500, 50) -- Clicking activate button
-
-            local i = 0
-            repeat -- clicking through dialog
-                task.wait()
-                i = i + 1
-                clickMouse(666, 503)
-            until i > 15
-        end
-    end
-end
-
 -- Return all tasks organized into categories
 local function taskSorter()
     
@@ -221,13 +212,21 @@ local function taskSorter()
                     if quantity and itemType and field then
                         table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
                     else
-                        quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
+                        local quantity, itemType = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)")
                         if quantity and itemType then
-                            table.insert(foodQuests, quantity .. " " .. itemType)
+
+                            -- Remove commas from the quantity and convert it to a number
+                            local numericQuantity = quantity:gsub(",", "")
+                            table.insert(fieldQuests, numericQuantity .. " " .. itemType)
                         else
-                            quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                            quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
                             if quantity and itemType then
-                                table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
+                                table.insert(foodQuests, quantity .. " " .. itemType)
+                            else
+                                quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                                if quantity and itemType then
+                                    table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
+                                end
                             end
                         end
                     end
@@ -237,82 +236,6 @@ local function taskSorter()
     end
 
     return mobQuests, fieldQuests, foodQuests 
-end
-
--- Auto Quest
-local function autoQuest()
-
-    -- Quest Frame & List of all Quests and Tasks
-    local questFrame = getFrame("Quests")
-    local quests = {}
-    local taskList
-
-    -- Variables used for functions handling NPCs
-    local npcFolder = workspace.NPCs
-    local npcs = npcFolder:GetChildren()
-
-    print("Checking status of quests.")
-    if checkForQuest() then
-        print("Quests Found! Adding to quests table.")
-        for index, quest in questFrame.Content.Frame:GetChildren() do
-            if quest.Name:match("QuestBox") then
-                table.insert(quests, quest)
-            end
-        end
-    else
-        print("No quest found, accepting one now.")
-        updateQuest("Black Bear")
-    end
-
-    print("Going over all quests to check for any completed ones.")
-    for index, quest in ipairs(quests) do -- claiming any quests completed
-        if checkQuestStatus(quest) then
-            print("Quest completed! Finding NPC of quest.")
-            for index, NPC in ipairs(npcs) do
-                print(index)
-                -- Remove all numbers from NPC.Name
-                local modifiedName = NPC.Name:gsub("%d+", "")
-
-                -- Trim leading and trailing whitespace
-                modifiedName = modifiedName:match("^%s*(.-)%s*$")
-
-                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
-                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
-                    updateQuest(NPC.Name)
-
-                    print("Removing quest from table")
-                    table.remove(quests, index)
-
-                    break -- breaking out of NPC loop as quest is completed
-                end
-            end
-        end
-    end
-
-    print("Sorting tasks into 3 lists now.")
-    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting incomplete tasks into different lists
-
-    if #fieldTasks > 0 then
-        print("Completing field tasks.")
-        for index, fieldTask in ipairs(fieldTasks) do
-            for index, field in ipairs(fields) do
-                local firstWord = field.Name:match("^%S+") -- getting first word of field
-
-                if fieldTask:match(firstWord) then
-                    goToLocation(field.Position)
-
-                    local i = 0
-                    repeat
-                        task.wait()
-                        i = i + 1
-                        autoFarm()
-                    until i == 10
-
-                    break
-                end
-            end
-        end
-    end
 end
 
 -- Functions to move character to given position
@@ -377,6 +300,7 @@ local function calcPath(pos)
     end
 end
 
+-- function to walk user to location
 local function goToLocation(locationPos)
     local path = calcPath(locationPos)
 
@@ -450,6 +374,7 @@ local function goToLocation(locationPos)
     until (humanoidRoot.Position - locationPos).Magnitude < 10
 end
 
+-- function to walk user to an item
 local function goToItem(itemPos)
     local path = calcPath(itemPos)
 
@@ -489,7 +414,7 @@ local function goToItem(itemPos)
     -- repeat task.wait() until we can meet a condition
     repeat
         task.wait()
-    until (humanoidRoot.Position - locationPos).Magnitude < 10
+    until (humanoidRoot.Position - itemPos).Magnitude < 10
 end
 
 -- Check capacity of backpack
@@ -618,22 +543,6 @@ local function viciousNearby()
     end
 end
 
--- Auto collect loot
-local function collectLoot()
-    local collectiblesFolder = workspace.Collectibles
-    local collectibles = collectiblesFolder:GetChildren()
-    local pos = humanoidRoot.Position
-
-    if #collectibles > 0 then
-        for index, collectible in ipairs(collectibles) do
-            local mag = math.floor((pos - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
-            if mag <= 50 and touchingFlower(collectible.Position) then
-                goToItem(collectible.Position)
-            end
-        end
-    end
-end
-
 -- Auto summon eggs
 
 -- shop TPs
@@ -658,6 +567,18 @@ local function followCloud()
     end
 end
 
+-- Check if human is inside a gadget
+local function touchingGadget(pos)
+    
+    for index, gadget in ipairs(gadgets) do
+        if (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Check if item is inside a flower tile
 local function touchingFlower(pos)
 
@@ -674,22 +595,58 @@ local function touchingFlower(pos)
     return false
 end
 
--- Check if human is inside a gadget
-local function touchingGadget(pos)
-    
-    for index, gadget in ipairs(gadgets) do
-        if (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
-            return true
+-- Auto collect loot
+local function collectLoot()
+    local collectiblesFolder = workspace.Collectibles
+    local collectibles = collectiblesFolder:GetChildren()
+    local pos = humanoidRoot.Position
+
+    if #collectibles > 0 then
+        for index, collectible in ipairs(collectibles) do
+            local mag = math.floor((pos - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
+            if mag <= 50 and touchingFlower(collectible.Position) then
+                goToItem(collectible.Position)
+            end
         end
     end
+end
 
-    return false
+-- Function to accept and claim quests.
+local function updateQuest(npc)
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+
+    for index, NPC in ipairs(npcs) do
+        if NPC.Name == npc then -- going to selected NPC
+            goToLocation(NPC.Circle.Position)
+
+            clickMouse(500, 50) -- Clicking activate button
+
+            local i = 0
+            repeat -- clicking through dialog
+                task.wait()
+                i = i + 1
+                clickMouse(666, 503)
+            until i > 15
+        end
+    end
+end
+
+-- Auto Farm Function
+local function autoFarm() -- weapon cd maybe? 
+    local pos = humanoidRoot.Position
+    
+    if touchingFlower(pos) then
+        require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
+   end
 end
 
 -- Move to random point in field
 local function goToRandomPoint()
     local pos = humanoidRoot.Position
-    local newPos -- new POS to return
+    local newPos -- new POS to go to
 
     repeat -- generating new X & Y coords until they are within the field area
         task.wait()
@@ -702,6 +659,170 @@ local function goToRandomPoint()
     until touchingFlower(newPos)
 
     goToItem(newPos)
+end
+
+-- Auto Quest function
+local function autoQuest()
+
+    -- Quest Frame & List of all Quests and Tasks
+    local questFrame = getFrame("Quests")
+    local quests = {}
+    local taskList
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+
+    print("Checking status of quests.")
+    if checkForQuest() then
+        print("Quests Found! Adding to quests table.")
+        for index, quest in questFrame.Content.Frame:GetChildren() do
+            if quest.Name:match("QuestBox") then
+                table.insert(quests, quest)
+            end
+        end
+    else
+        print("No quest found, accepting one now.")
+        updateQuest("Black Bear")
+    end
+
+    print("Going over all quests to check for any completed ones.")
+    for index, quest in ipairs(quests) do -- claiming any quests completed
+        if checkQuestStatus(quest) then
+            print("Quest completed! Finding NPC of quest.")
+            for index, NPC in ipairs(npcs) do
+
+                -- Remove all numbers from NPC.Name
+                local modifiedName = NPC.Name:gsub("%d+", "")
+
+                -- Trim leading and trailing whitespace
+                modifiedName = modifiedName:match("^%s*(.-)%s*$")
+
+                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
+                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
+                    updateQuest(NPC.Name)
+
+                    print("Removing quest from table")
+                    table.remove(quests, index)
+
+                    break -- breaking out of NPC loop as quest is completed
+                end
+            end
+        end
+    end
+
+    print("Sorting tasks into 3 lists now.")
+    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting incomplete tasks into different lists
+
+    if #fieldTasks > 0 then
+        print("Completing field tasks.")
+        for index, fieldTask in ipairs(fieldTasks) do
+            for index, field in ipairs(fields) do
+                local firstWord = field.Name:match("^%S+") -- getting first word of field
+
+                if fieldTask:match(firstWord) then
+                    print("Matched: ", firstWord)
+                    goToLocation(field.Position)
+
+                    local pollen = player.CoreStats.Pollen.Value
+                    local pollenNeeded = fieldTask:match("(%d+[%.,]*%d*)%s*Pollen from")
+
+                    repeat
+                        task.wait()
+                        pollen = player.CoreStats.Pollen.Value
+                        local pos = humanoidRoot.Position
+
+                        if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                        autoSell()
+                        collectLoot()
+                        goToRandomPoint()
+
+                        autoFarm()
+                    until pollen == pollen + tonumber(pollenNeeded)
+
+                    break
+                elseif fieldTask:match("Red") then
+                    print("Farming red pollen")
+
+                    for index, field in ipairs(fields) do
+                        if field.Name == redFields[3] then
+                            goToLocation(field.Position)
+                        end
+                    end
+
+                    local pollen = player.CoreStats.Pollen.Value
+                    local pollenNeeded = fieldTask:match("(%d+)")
+
+                    repeat
+                        task.wait()
+                        pollen = player.CoreStats.Pollen.Value
+
+                        if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                        autoSell()
+                        collectLoot()
+                        goToRandomPoint()
+
+                        autoFarm()
+                    until pollen == pollen + tonumber(pollenNeeded)
+
+                    break
+                elseif fieldTask:match("Blue") then
+                    print("Farming blue pollen")
+                    
+                    for index, field in ipairs(fields) do
+                        if field.Name == blueFields[3] then
+                            goToLocation(field.Position)
+                        end
+                    end
+
+                    local pollen = player.CoreStats.Pollen.Value
+                    local pollenNeeded = fieldTask:match("(%d+)")
+
+                    repeat
+                        task.wait()
+                        pollen = player.CoreStats.Pollen.Value
+
+                        if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                        autoSell()
+                        collectLoot()
+                        goToRandomPoint()
+
+                        autoFarm()
+                    until pollen == pollen + tonumber(pollenNeeded)
+
+                    break
+                elseif fieldTask:match("White") then
+                    print("Farming white pollen")
+                    
+                    for index, field in ipairs(fields) do
+                        if field.Name == whiteFields[3] then
+                            goToLocation(field.Position)
+                        end
+                    end
+
+                    local pollen = player.CoreStats.Pollen.Value
+                    local pollenNeeded = fieldTask:match("(%d+)")
+
+                    repeat
+                        task.wait()
+                        pollen = player.CoreStats.Pollen.Value
+
+                        if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                        autoSell()
+                        collectLoot()
+                        goToRandomPoint()
+
+                        autoFarm()
+                    until pollen == pollen + tonumber(pollenNeeded)
+                    break
+                end
+            end
+        end
+    end
 end
 
 -- auto claim badge
@@ -837,6 +958,30 @@ do
     end)
 
 -- Auto Quest Tab --
+    -- Select red farming field
+    local redDropdown = Tabs.autoQuestTab:AddDropdown("selectRedField", {
+        Title = "Select Red Field",
+        Values = redFields,
+        Multi = false,
+        Default = 1
+    })
+
+    -- Select red farming field
+    local blueDropdown = Tabs.autoQuestTab:AddDropdown("selectBlueField", {
+        Title = "Select Blue Field",
+        Values = blueFields,
+        Multi = false,
+        Default = 1
+    })
+
+    -- Select white farming field
+    local whiteDropdown = Tabs.autoQuestTab:AddDropdown("selectWhiteField", {
+        Title = "Select White Field",
+        Values = whiteFields,
+        Multi = false,
+        Default = 1
+    })
+
     -- Auto Quest Toggle
     local questToggle = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
 
