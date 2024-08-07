@@ -99,16 +99,43 @@ local function goToLocation(locationPos)
 
     local reachedConnection
     local pathBlockedConnection
+    local currentWaypointIndex = 1
+    local ballParts = {}
 
     local waypoints = path:GetWaypoints()
 
     for index, waypoint in ipairs(waypoints) do
         -- spawn dots to destination
+        task.wait()
+        local part = Instance.new("part")
+        part.Name = "GuideBall"
+        part.Shape = "Ball"
+        part.Color = Color3.new(255, 0, 0)
+        part.Material = "Neon"
+        part.Size = Vector3.new(0.6, 0.6, 0.6)
+        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+
+        table.insert(ballParts, part)
     end
 
     for index, waypoint in ipairs(waypoints) do
+        -- delete the ball
+        ballParts[currentWaypointIndex]:Destroy()
+
+        -- update waypoint
+        currentWaypointIndex = currentWaypointIndex + 1
+
+        -- jump if needed
+        if waypoint.Action == Enum.PathWaypointAction.Jump then
+            humanoid.Jump = true
+        end
+
         -- walk to waypoint
-        -- delete the dot
+        humanoid:MoveTo(waypoint.Position)
+        humanoid.MoveToFinished:Wait()
 
         -- need to catch blocked waypoints then call function onPathBlocked()
     end
@@ -132,3 +159,5 @@ local function goToItem(itemPos)
 
     -- repeat task.wait() until we can meet a condition
 end
+
+goToLocation(player.SpawnPos.Value.Position)
