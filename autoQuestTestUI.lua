@@ -409,8 +409,8 @@ local function autoQuest(npc)
         if checkQuestStatus(quest) then
             print("Quest completed! Finding NPC of quest.")
             for index, NPC in ipairs(npcs) do
-                if string.find(quest:FindFirstChild("TaskBar").Description, NPC.Name) then
-                    print("Matched the NPC: " .. tostring(NPC.Name) .. " Claiming quest now.")
+                if quest:FindFirstChild("TaskBar").Description.ContentText:match(NPC.Name) then
+                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
                     updateQuest(NPC.Name)
 
                     print("Removing quest from table")
