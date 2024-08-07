@@ -159,44 +159,6 @@ local function taskFinder()
     return mobQuests, fieldQuests, foodQuests 
 end
 
--- DELETE LATER ------------------------
--- Player Variables
-local workspace = game:GetService("Workspace")
-local player = game:GetService("Players").LocalPlayer
-local character = player.Character
-local humanoid = character:FindFirstChild("Humanoid")
-local humanoidRoot = character:WaitForChild("HumanoidRootPart")
-local virtualUser = game:GetService("VirtualUser")
-
--- Path Variables
-local PathfindingService = game:GetService("PathfindingService")
-local MAX_RETRIES = 5
-local RETRY_COOLDOWN = 1
-
--- Variables used for functions handling hives
-local hiveFolder = workspace.Honeycombs
-local hives = hiveFolder:GetChildren()
-
--- Variables used for functions handling fields
-local fieldsFolder = workspace.FlowerZones
-local fields = fieldsFolder:GetChildren()
-
--- Variables used for functions handling FlowerZones
-local flowersFolder = workspace.Flowers
-local flowers = flowersFolder:GetChildren()
-
--- Variables used for functions handling NPCs
-local npcFolder = workspace.NPCs
-local npcs = npcFolder:GetChildren()
-
--- Gadget Variables
-local gadgetsFolder = workspace.Gadgets
-local gadgets = gadgetsFolder:GetChildren()
-
--- Variable for menus
-local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
-local menuOptions = menu.Children:GetChildren()
-
 -- Using user's left click 
 local function clickMouse(x, y)
     local click = game:GetService("VirtualInputManager")
