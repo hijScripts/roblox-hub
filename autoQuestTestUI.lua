@@ -416,9 +416,9 @@ local function autoQuest(npc)
 end
 
 do
-    local autoQuest = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
+    local autoQ = Tabs.autoQuestTab:AddToggle("autoQuestToggle", {Title = "Auto Quest [BETA]", Default = false})
 
-    autoQuest:OnChanged(function()
+    autoQ:OnChanged(function()
         if Options.autoQuestToggle.Value == true then
             repeat
                 task.wait()
