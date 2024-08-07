@@ -37,10 +37,6 @@ local PathfindingService = game:GetService("PathfindingService")
 local MAX_RETRIES = 5
 local RETRY_COOLDOWN = 1
 
--- -- Tween Variables
--- local tweenService = game:GetService("TweenService")
--- local tweenInfo = TweenInfo.New(3)
-
 -- Variables used for functions handling hives
 local hiveFolder = workspace.Honeycombs
 local hives = hiveFolder:GetChildren()
@@ -61,14 +57,12 @@ local npcs = npcFolder:GetChildren()
 local gadgetsFolder = workspace.Gadgets
 local gadgets = gadgetsFolder:GetChildren()
 
--- Variable for all toggles
-local toggleList = {}
-
 -- Variable for menus
 local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
 local menuOptions = menu.Children:GetChildren()
 
 -- Anti AFK
+local player = game:GetService("Players").LocalPlayer
 player.Idled:connect(function()
 virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
 end)
@@ -165,6 +159,63 @@ local function taskFinder()
     return mobQuests, fieldQuests, foodQuests 
 end
 
+-- DELETE LATER ------------------------
+-- Player Variables
+local workspace = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character
+local humanoid = character:FindFirstChild("Humanoid")
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+local virtualUser = game:GetService("VirtualUser")
+
+-- Path Variables
+local PathfindingService = game:GetService("PathfindingService")
+local MAX_RETRIES = 5
+local RETRY_COOLDOWN = 1
+
+-- Variables used for functions handling hives
+local hiveFolder = workspace.Honeycombs
+local hives = hiveFolder:GetChildren()
+
+-- Variables used for functions handling fields
+local fieldsFolder = workspace.FlowerZones
+local fields = fieldsFolder:GetChildren()
+
+-- Variables used for functions handling FlowerZones
+local flowersFolder = workspace.Flowers
+local flowers = flowersFolder:GetChildren()
+
+-- Variables used for functions handling NPCs
+local npcFolder = workspace.NPCs
+local npcs = npcFolder:GetChildren()
+
+-- Gadget Variables
+local gadgetsFolder = workspace.Gadgets
+local gadgets = gadgetsFolder:GetChildren()
+
+-- Variable for menus
+local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
+local menuOptions = menu.Children:GetChildren()
+
+-- Using user's left click 
+local function clickMouse(x, y)
+    local click = game:GetService("VirtualInputManager")
+
+    click:SendMouseButtonEvent(x, y, 0, true, nil, 1)
+    task.wait(0.1)
+    click:SendMouseButtonEvent(x, y, 0, false, nil, 1)
+end
+
+-- Checking for quests
+local function checkForQuest()
+    local questFrame = getFrame("Quests")
+    local quests = questFrame.Content:GetChildren()
+
+    if #quests <= 0 then
+        clickMouse(84, 105)
+    end
+end
+
 -- Checking status of a quest
 local function checkIfCompleted(task)
     if #task.FillBar:GetChildren() >= 1 then
@@ -173,6 +224,27 @@ local function checkIfCompleted(task)
 
     return false
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- Auto Quest
 local function autoQuest()
