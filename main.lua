@@ -651,8 +651,8 @@ local function goToRandomPoint()
     repeat -- generating new X & Y coords until they are within the field area
         task.wait()
 
-        local randX = math.random(pos.X - 20, pos.X + 20)
-        local randZ = math.random(pos.Z - 20, pos.Z + 20)
+        local randX = math.random(pos.X - 10, pos.X + 10)
+        local randZ = math.random(pos.Z - 10, pos.Z + 10)
 
         newPos = Vector3.new(randX, pos.Y, randZ)
 
