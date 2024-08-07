@@ -358,11 +358,24 @@ local function updateQuest(npc)
         if NPC.Name == npc then -- going to selected NPC
             goToLocation(NPC.Circle.Position)
         end
-
-        if player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 then
-            
-        end
     end
+
+    if player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 then -- if user is on NPC circle, activating dialog
+        clickMouse(378, 6)
+    else
+        repeat
+            task.wait()
+        until player.PlayerGui.ScreenGui.ActivateButton.Position.Y.Offset >= 0 -- in case goTo function is running behind, halting user until it catches up
+        
+        clickMouse(378, 6)
+    end
+
+    local i = 0
+    repeat -- clicking through dialog
+        task.wait()
+        i = i + 1
+        clickMouse(666, 503)
+    until i > 10
 end
 
 -- Auto Quest
@@ -376,12 +389,15 @@ local function autoQuest(npc)
 
     if checkForQuest() then
         quests = questFrame.Content.Frame:GetChildren():match("QuestBox")
-    end
-
-    if #quests <= 0 then
+    else
         updateQuest(npc)
     end
 
+    for index, quest in ipairs(quests) do
+        if checkQuestStatus(quest) then
+            updateQuest(npc)
+        end
+    end
 
     for index, quest in ipairs(questList) do
         local questTasks = quest:GetChildren() -- List of all tasks for related quest
