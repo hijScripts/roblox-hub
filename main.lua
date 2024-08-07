@@ -49,10 +49,6 @@ local fields = fieldsFolder:GetChildren()
 local flowersFolder = workspace.Flowers
 local flowers = flowersFolder:GetChildren()
 
--- Variables used for functions handling NPCs
-local npcFolder = workspace.NPCs
-local npcs = npcFolder:GetChildren()
-
 -- Gadget Variables
 local gadgetsFolder = workspace.Gadgets
 local gadgets = gadgetsFolder:GetChildren()
@@ -98,8 +94,106 @@ local function autoFarm() -- weapon cd maybe?
    end
 end
 
+-- Using user's left click 
+local function clickMouse(x, y)
+    local click = game:GetService("VirtualInputManager")
+
+    click:SendMouseButtonEvent(x, y, 0, true, nil, 1)
+    task.wait(0.1)
+    click:SendMouseButtonEvent(x, y, 0, false, nil, 1)
+end
+
+-- Opens quest tab and checks for quests
+local function checkForQuest()
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+    local questFrame = getFrame("Quests")
+    local questContent = questFrame.Content:GetChildren()
+
+    print("Checking if quest tab is open")
+    if #questContent <= 0 then -- If length 0 then quest tab will be opened.
+        clickMouse(84, 105)
+
+        repeat -- letting frame load before continuing
+            task.wait()
+            local questContent = questFrame.Content:GetChildren()
+        until #questContent > 0
+    end
+
+    local quests = questFrame.Content.Frame:GetChildren()
+
+    print("Checking if quest count is less than 0")
+    if #quests <= 0 then -- If no quests, returning false
+        return false
+    else
+        return true
+    end
+end
+
+-- Checking status of a task
+local function checkTaskStatus(task)
+    if #task.FillBar:GetChildren() >= 1 then
+        return true
+    else
+        return false
+    end
+end
+
+-- checking status of a quest
+local function checkQuestStatus(quest)
+
+    local tasks = {}
+    
+    for index, task in ipairs(quest:GetChildren()) do
+        if task.Name == "TaskBar" then
+            table.insert(tasks, task)
+        end
+    end
+
+    local amountToBeCompleted = #tasks
+    local tasksCompleted = 0
+
+    for index, task in ipairs(tasks) do
+        if checkTaskStatus(task) then
+            tasksCompleted = tasksCompleted + 1
+        end
+    end
+
+    print("Amount of tasks completed:", tasksCompleted, "/", amountToBeCompleted)
+    if tasksCompleted == amountToBeCompleted then
+        return true
+    else
+        return false
+    end
+end
+
+-- Function to accept and claim quests.
+local function updateQuest(npc)
+
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
+
+    for index, NPC in ipairs(npcs) do
+        if NPC.Name == npc then -- going to selected NPC
+            goToLocation(NPC.Circle.Position)
+
+            clickMouse(500, 50) -- Clicking activate button
+
+            local i = 0
+            repeat -- clicking through dialog
+                task.wait()
+                i = i + 1
+                clickMouse(666, 503)
+            until i > 15
+        end
+    end
+end
+
 -- Return all tasks organized into categories
-local function taskFinder()
+local function taskSorter()
     
     -- Tables for categorized tasks
     local mobQuests = {}
@@ -118,142 +212,22 @@ local function taskFinder()
 
         -- 4. Categorize each task
         for index, task in ipairs(taskList) do
-            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then -- Ignore the title bar
-                local desc = task.Description.ContentText -- Get the description
+            if task.Name == "TaskBar" then -- Ignore the title bar
+                if not checkTaskStatus(task) then
+                    local desc = task.Description.ContentText -- Get the description
 
-                -- Handle different task types
-                local quantity, itemType, field = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)%s*from the (%a+)")
-                if quantity and itemType and field then
-                    table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
-                else
-                    quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
-                    if quantity and itemType then
-                        table.insert(foodQuests, quantity .. " " .. itemType)
+                    -- Handle different task types
+                    local quantity, itemType, field = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)%s*from the (%a+)")
+                    if quantity and itemType and field then
+                        table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
                     else
-                        quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                        quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
                         if quantity and itemType then
-                            table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    -- 5. Print the organized tasks
-    -- print("Field_Quest:")
-    -- for _, quest in ipairs(field_Quests) do
-    --     print(" - " .. quest)
-    -- end
-
-    -- print("Food_Quest:")
-    -- for _, quest in ipairs(food_Quests) do
-    --     print(" - " .. quest)
-    -- end
-
-    -- print("Mob_Quest:")
-    -- for _, quest in ipairs(mob_Quests) do
-    --     print(" - " .. quest)
-    -- end
-
-    return mobQuests, fieldQuests, foodQuests 
-end
-
--- Using user's left click 
-local function clickMouse(x, y)
-    local click = game:GetService("VirtualInputManager")
-
-    click:SendMouseButtonEvent(x, y, 0, true, nil, 1)
-    task.wait(0.1)
-    click:SendMouseButtonEvent(x, y, 0, false, nil, 1)
-end
-
--- Checking for quests
-local function checkForQuest()
-    local questFrame = getFrame("Quests")
-    local quests = questFrame.Content:GetChildren()
-
-    if #quests <= 0 then
-        clickMouse(84, 105)
-    end
-end
-
--- Checking status of a quest
-local function checkIfCompleted(task)
-    if #task.FillBar:GetChildren() >= 1 then
-        return true
-    end
-
-    return false
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- Auto Quest
-local function autoQuest()
-
-    -- Quest Frame & List of all Questse
-    local questFrame = getFrame("Quests")
-    local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
-
-    for index, quest in questList do -- Deleting any empty messages from quest list
-        if quest.Name == "EmptyMessage" then
-            table.remove(questList, index)
-        end
-    end
-
-    local taskList = {} -- List to hold all task instances
-
-    for index, quest in ipairs(questList) do
-        local questTasks = quest:GetChildren() -- List of all tasks for related quest
-
-        for index, task in questTasks do
-            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
-                table.insert(taskList, task) -- Adding each individual task to list
-            end
-        end
-    end
-
-    -- 1. Get the tasks required
-    local mobTasks, fieldTasks, foodQuests = taskFinder()
-
-    -- 2. Complete field tasks
-    for index, fieldTask in ipairs(fieldTasks) do
-        for index, field in ipairs(fields) do
-            if string.find(fieldTask, field.Name:match("^([%w]+)")) then
-                print("Found " .. field.Name:match("^([%w]+)") .. " in " .. fieldTask)
-                for index, task in ipairs(taskList) do
-                    if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then
-                        if string.find(task.Description.ContentText, field.Name) then
-                            print("Found " .. fieldTask .. " in " .. task.Description.ContentText)
-                            if not checkIfCompleted(task) then
-                                print("going to field")
-                                goTo(field.Position)
-                                repeat
-                                    task.wait()
-                                    autoFarm()
-                                    task.wait()
-                                    if Options.autoSellToggle.Value == true then autoSell() end
-                                until checkIfCompleted(task)
+                            table.insert(foodQuests, quantity .. " " .. itemType)
+                        else
+                            quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                            if quantity and itemType then
+                                table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
                             end
                         end
                     end
@@ -261,64 +235,80 @@ local function autoQuest()
             end
         end
     end
+
+    return mobQuests, fieldQuests, foodQuests 
 end
 
--- Auto Holiday Quest Function
-local function claimQuest(npc)
+-- Auto Quest
+local function autoQuest(npc)
 
-    local questNum = 0 -- number to iterate with
-    while questNum <= 20 do
-        task.wait()
-        print("Attempting to claim Quest Number: " .. questNum)
-        local args = {
-            [1] = npc,
-            [2] = questNum, -- brute forcing quest number
-            [3] = "Completed"
-        }
-
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GiveQuest"):FireServer(unpack(args))
-
-        questNum = questNum + 1
-    end
-end
-
--- Check all quest status
-local function getQuestStatus()
+    -- Quest Frame & List of all Quests and Tasks
     local questFrame = getFrame("Quests")
-    local quests = questFrame.Content:FindFirstChild("Frame"):GetChildren()
-    
+    local quests = {}
+    local taskList
 
-    for index, quest in ipairs(quests) do -- Going through each quest and checking task individually
-        if quest.Name == "QuestBox" then
-            local tasks = {} -- table to go over tasks in each quest
+    -- Variables used for functions handling NPCs
+    local npcFolder = workspace.NPCs
+    local npcs = npcFolder:GetChildren()
 
-            for index, task in quest:GetChildren() do -- loop to get rid of unnecessary children
-                if task.Name == "TaskBar" then
-                    table.insert(tasks, task)
+    print("Checking status of quests.")
+    if checkForQuest() then
+        print("Quests Found! Adding to quests table.")
+        for index, quest in questFrame.Content.Frame:GetChildren() do
+            if quest.Name:match("QuestBox") then
+                table.insert(quests, quest)
+            end
+        end
+    else
+        print("No quest found, accepting one now.")
+        updateQuest(npc)
+    end
+
+    print("Going over all quests to check for any completed ones.")
+    for index, quest in ipairs(quests) do -- claiming any quests completed
+        if checkQuestStatus(quest) then
+            print("Quest completed! Finding NPC of quest.")
+            for index, NPC in ipairs(npcs) do
+                print(index)
+                -- Remove all numbers from NPC.Name
+                local modifiedName = NPC.Name:gsub("%d+", "")
+
+                -- Trim leading and trailing whitespace
+                modifiedName = modifiedName:match("^%s*(.-)%s*$")
+
+                if quest:FindFirstChild("TaskBar").Description.ContentText:match(modifiedName) then
+                    print("Matched the NPC: " .. NPC.Name .. " Claiming quest now.")
+                    updateQuest(NPC.Name)
+
+                    print("Removing quest from table")
+                    table.remove(quests, index)
+
+                    break -- breaking out of NPC loop as quest is completed
                 end
             end
+        end
+    end
 
-            local i = 0 -- number of completed tasks
-            local numOfTasks = #tasks
+    print("Sorting tasks into 3 lists now.")
+    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting incomplete tasks into different lists
 
+    if #fieldTasks > 0 then
+        print("Completing field tasks.")
+        for index, fieldTask in ipairs(fieldTasks) do
+            for index, field in ipairs(fields) do
+                local firstWord = field.Name:match("^%S+") -- getting first word of field
 
-            for index, task in ipairs(tasks) do 
-                if task.Name == "TaskBar" then -- getting rid of non-task children
-                    if #task.FillBar:GetChildren() >= 1 then -- if length found, task is complete
+                if fieldTask:match(firstWord) then
+                    goToLocation(field.Position)
+
+                    local i = 0
+                    repeat
+                        task.wait()
                         i = i + 1
-                    end
-                end
-            end
+                        autoFarm()
+                    until i == 10
 
-            if i == numOfTasks then
-                for index, npc in ipairs(npcs) do
-                    if npc.Name ~= "Honey Bee" then
-                        if tasks[1].Description.ContentText:match(npc.Name) then
-                            print("Claiming quest for " .. npc.Name)
-                            goTo(npc.Platform.Position)
-                            claimQuest(npc.Name)
-                        end
-                    end
+                    break
                 end
             end
         end
@@ -455,6 +445,9 @@ local function goToLocation(locationPos)
     end
 
     -- repeat task.wait() until we can meet a condition
+    repeat
+        task.wait()
+    until (humanoidRoot.Position - locationPos).Magnitude < 10
 end
 
 local function goToItem(itemPos)
@@ -494,8 +487,10 @@ local function goToItem(itemPos)
     end
 
     -- repeat task.wait() until we can meet a condition
+    repeat
+        task.wait()
+    until (humanoidRoot.Position - locationPos).Magnitude < 10
 end
-
 
 -- Check capacity of backpack
 local function backpackFull()

@@ -73,6 +73,43 @@ for index, ball in ipairs(game.Workspace.BoostBalls:GetChildren()) do
     end
 end
 
+-- Check if human is inside a gadget
+local function touchingGadget(pos)
+    
+    for index, gadget in ipairs(gadgets) do
+        if (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Check if item is inside a flower tile
+local function touchingFlower(pos)
+
+    for index, flower in ipairs(flowers) do
+        if (pos - flower.Position).Magnitude <= 4 then
+            return true
+        end
+    end
+
+    if touchingGadget(pos) then -- sometimes gadget can take over flower tile which causes issues
+        return true
+    end
+
+    return false
+end
+
+-- Auto Farm Function
+local function autoFarm() -- weapon cd maybe? 
+    local pos = humanoidRoot.Position
+    
+    if touchingFlower(pos) then
+        require(game.ReplicatedStorage.Collectors.LocalCollect).Run()
+   end
+end
+
 -- Functions to move character to given position
 local function calcPath(pos)
     local path = PathfindingService:CreatePath({
@@ -245,6 +282,9 @@ local function goToItem(itemPos)
     end
 
     -- repeat task.wait() until we can meet a condition
+    repeat
+        task.wait()
+    until (humanoidRoot.Position - locationPos).Magnitude < 10
 end
 
 -- Get Selected Menu frame
@@ -254,51 +294,6 @@ local function getFrame(name)
             return option
         end
     end
-end
-
--- Return all tasks organized into categories
-local function taskSorter()
-    
-    -- Tables for categorized tasks
-    local mobQuests = {}
-    local fieldQuests = {}
-    local foodQuests = {}
-
-    -- 1. Get the quest frame
-    local questFrame = getFrame("Quests")
-
-    -- 2. Get list of all quests
-    local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
-
-    -- 3. Get all tasks for each quest
-    for index, quest in ipairs(questList) do
-        local taskList = quest:GetChildren()
-
-        -- 4. Categorize each task
-        for index, task in ipairs(taskList) do
-            if task.Name ~= "TitleBar" and task.Name ~= "TextLabel" and task.Name ~= "TitleBarBG" then -- Ignore the title bar
-                local desc = task.Description.ContentText -- Get the description
-
-                -- Handle different task types
-                local quantity, itemType, field = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)%s*from the (%a+)")
-                if quantity and itemType and field then
-                    table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
-                else
-                    quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
-                    if quantity and itemType then
-                        table.insert(foodQuests, quantity .. " " .. itemType)
-                    else
-                        quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
-                        if quantity and itemType then
-                            table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    return mobQuests, fieldQuests, foodQuests 
 end
 
 -- Using user's left click 
@@ -387,8 +382,6 @@ local function updateQuest(npc)
         if NPC.Name == npc then -- going to selected NPC
             goToLocation(NPC.Circle.Position)
 
-            task.wait(1)
-
             clickMouse(500, 50) -- Clicking activate button
 
             local i = 0
@@ -399,6 +392,53 @@ local function updateQuest(npc)
             until i > 15
         end
     end
+end
+
+-- Return all tasks organized into categories
+local function taskSorter()
+    
+    -- Tables for categorized tasks
+    local mobQuests = {}
+    local fieldQuests = {}
+    local foodQuests = {}
+
+    -- 1. Get the quest frame
+    local questFrame = getFrame("Quests")
+
+    -- 2. Get list of all quests
+    local questList = questFrame.Content:FindFirstChild("Frame"):GetChildren()
+
+    -- 3. Get all tasks for each quest
+    for index, quest in ipairs(questList) do
+        local taskList = quest:GetChildren()
+
+        -- 4. Categorize each task
+        for index, task in ipairs(taskList) do
+            if task.Name == "TaskBar" then -- Ignore the title bar
+                if not checkTaskStatus(task) then
+                    local desc = task.Description.ContentText -- Get the description
+
+                    -- Handle different task types
+                    local quantity, itemType, field = desc:match("Collect (%d+[%.,]*%d*)%s*(%a+)%s*from the (%a+)")
+                    if quantity and itemType and field then
+                        table.insert(fieldQuests, quantity .. " " .. itemType .. " from " .. field)
+                    else
+                        quantity, itemType = desc:match("Feed (%d+)%s*(%a+)")
+                        if quantity and itemType then
+                            table.insert(foodQuests, quantity .. " " .. itemType)
+                        else
+                            quantity, itemType = desc:match("Defeat (%d+)%s*(%a+)")
+                            if quantity and itemType then
+                                table.insert(mobQuests, "Defeat " .. quantity .. " " .. itemType)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return mobQuests, fieldQuests, foodQuests 
 end
 
 -- Auto Quest
@@ -431,7 +471,7 @@ local function autoQuest(npc)
         if checkQuestStatus(quest) then
             print("Quest completed! Finding NPC of quest.")
             for index, NPC in ipairs(npcs) do
-
+                print(index)
                 -- Remove all numbers from NPC.Name
                 local modifiedName = NPC.Name:gsub("%d+", "")
 
@@ -443,14 +483,38 @@ local function autoQuest(npc)
                     updateQuest(NPC.Name)
 
                     print("Removing quest from table")
-                    table.remove(quests, quests[index])
+                    table.remove(quests, index)
+
+                    break -- breaking out of NPC loop as quest is completed
                 end
             end
         end
     end
 
     print("Sorting tasks into 3 lists now.")
-    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting tasks into different lists
+    local mobTasks, fieldTasks, foodQuests = taskSorter() -- Sorting incomplete tasks into different lists
+
+    if #fieldTasks > 0 then
+        print("Completing field tasks.")
+        for index, fieldTask in ipairs(fieldTasks) do
+            for index, field in ipairs(fields) do
+                local firstWord = field.Name:match("^%S+") -- getting first word of field
+
+                if fieldTask:match(firstWord) then
+                    goToLocation(field.Position)
+
+                    local i = 0
+                    repeat
+                        task.wait()
+                        i = i + 1
+                        autoFarm()
+                    until i == 10
+
+                    break
+                end
+            end
+        end
+    end
 end
 
 do
@@ -460,7 +524,7 @@ do
         if Options.autoQuestToggle.Value == true then
             repeat
                 task.wait()
-                autoQuest("Bee Bear")
+                autoQuest("Black Bear")
             until Options.autoQuestToggle.Value == false
         end
     end)
