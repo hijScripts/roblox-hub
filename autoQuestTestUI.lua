@@ -316,18 +316,19 @@ local function checkForQuest()
     local questFrame = getFrame("Quests")
     local questContent = questFrame.Content:GetChildren()
 
+    print("Checking if quest tab is open")
     if #questContent <= 0 then -- If length 0 then quest tab will be opened.
         clickMouse(84, 105)
     end
 
     local quests = questContent.Frame:GetChildren()
 
+    print("Checking if quest count is less than 0")
     if #quests <= 0 then -- If no quests, returning false
         return false
+    else
+        return true
     end
-
-    return true
-
 end
 
 -- Checking status of a task
