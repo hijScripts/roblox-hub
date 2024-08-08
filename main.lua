@@ -631,6 +631,8 @@ local function updateQuest(npc)
                 clickMouse(666, 503)
             until i > 15
 
+            task.wait(2)
+            
             clickMouse(500, 50) -- Clicking activate button to start the next quest
 
             local i = 0
@@ -735,6 +737,7 @@ local function autoQuest()
 
                     local pollen = player.CoreStats.Pollen.Value
                     local pollenNeeded = fieldTask:match("(%d+[%.,]*%d*)%s*Pollen from")
+                    pollenNeeded = pollenNeeded:gsub(",", "")
 
                     repeat
                         task.wait()
@@ -747,7 +750,9 @@ local function autoQuest()
                         collectLoot()
                         goToRandomPoint()
 
+                        print("Auto farm abt to play")
                         autoFarm()
+                        print("Auto farm successful")
                     until pollen + tonumber(pollenNeeded) < newPollen
 
                     break
@@ -762,6 +767,7 @@ local function autoQuest()
 
                     local pollen = player.CoreStats.Pollen.Value
                     local pollenNeeded = fieldTask:match("(%d+)")
+                    pollenNeeded = pollenNeeded:gsub(",", "")
 
                     repeat
                         task.wait()
@@ -788,6 +794,7 @@ local function autoQuest()
 
                     local pollen = player.CoreStats.Pollen.Value
                     local pollenNeeded = fieldTask:match("(%d+)")
+                    pollenNeeded = pollenNeeded:gsub(",", "")
 
                     repeat
                         task.wait()
@@ -814,6 +821,7 @@ local function autoQuest()
 
                     local pollen = player.CoreStats.Pollen.Value
                     local pollenNeeded = fieldTask:match("(%d+)")
+                    pollenNeeded = pollenNeeded:gsub(",", "")
 
                     repeat
                         task.wait()
@@ -839,6 +847,7 @@ local function autoQuest()
 
                     local pollen = player.CoreStats.Pollen.Value
                     local pollenNeeded = fieldTask:match("(%d+)")
+                    pollenNeeded = pollenNeeded:gsub(",", "")
 
                     repeat
                         task.wait()
