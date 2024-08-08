@@ -728,6 +728,7 @@ local function autoQuest()
     if #fieldTasks > 0 then
         print("Completing field tasks.")
         for index, fieldTask in ipairs(fieldTasks) do
+            print(fieldTask)
             for index, field in ipairs(fields) do
                 local firstWord = field.Name:match("^%S+") -- getting first word of field
 
@@ -834,7 +835,7 @@ local function autoQuest()
                         autoFarm()
                     until pollen + tonumber(pollenNeeded) < newPollen
                     break
-                elseif fieldTask:match("^Collect%s%d[%d,]*%sPollen$") then
+                elseif fieldTask:match("^%d[%d,]*%sPollen$") then
                     print("Farming ANY pollen")
 
                     for index, field in ipairs(fields) do
