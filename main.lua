@@ -632,7 +632,7 @@ local function updateQuest(npc)
             until i > 15
 
             task.wait(2)
-            
+
             clickMouse(500, 50) -- Clicking activate button to start the next quest
 
             local i = 0
@@ -750,9 +750,7 @@ local function autoQuest()
                         collectLoot()
                         goToRandomPoint()
 
-                        print("Auto farm abt to play")
                         autoFarm()
-                        print("Auto farm successful")
                     until pollen + tonumber(pollenNeeded) < newPollen
 
                     break
@@ -980,12 +978,12 @@ do
 
     -- Auto swing script
     swingToggle:OnChanged(function()
-        if Options.autoSwingToggle.Value == true and Options.autoFarmToggle.Value == true then
+        if Options.autoSwingToggle.Value == true then
             print("Auto swing toggled on.")
             repeat
                 task.wait()
                 autoFarm()
-            until Options.autoSwingToggle.Value == false or Options.autoFarmToggle.Value == false
+            until Options.autoSwingToggle.Value == false
         else
             print("Auto swing toggled off.")
         end
