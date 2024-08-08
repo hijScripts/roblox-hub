@@ -622,7 +622,16 @@ local function updateQuest(npc)
         if NPC.Name == npc then -- going to selected NPC
             goToLocation(NPC.Circle.Position)
 
-            clickMouse(500, 50) -- Clicking activate button
+            clickMouse(500, 50) -- Clicking activate button to claim the quest
+
+            local i = 0
+            repeat -- clicking through dialog
+                task.wait()
+                i = i + 1
+                clickMouse(666, 503)
+            until i > 15
+
+            clickMouse(500, 50) -- Clicking activate button to start the next quest
 
             local i = 0
             repeat -- clicking through dialog
@@ -818,6 +827,32 @@ local function autoQuest()
 
                         autoFarm()
                     until pollen + tonumber(pollenNeeded) < newPollen
+                    break
+                elseif fieldTask:match("^Collect%s%d[%d,]*%sPollen$") then
+                    print("Farming ANY pollen")
+
+                    for index, field in ipairs(fields) do
+                        if field.Name == redFields[3] then
+                            goToLocation(field.Position)
+                        end
+                    end
+
+                    local pollen = player.CoreStats.Pollen.Value
+                    local pollenNeeded = fieldTask:match("(%d+)")
+
+                    repeat
+                        task.wait()
+                        local newPollen = player.CoreStats.Pollen.Value
+
+                        if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+
+                        autoSell()
+                        collectLoot()
+                        goToRandomPoint()
+
+                        autoFarm()
+                    until pollen + tonumber(pollenNeeded) < newPollen
+
                     break
                 end
             end
