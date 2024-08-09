@@ -472,7 +472,13 @@ local function collectLoot()
             if collectible and pos then
                 local mag = math.floor((pos - collectible.Position).Magnitude) -- getting distance between humanoid and collectible
                 if mag <= 50 and collectible.Position and touchingFlower(collectible.Position) then
-                    goToItem(collectible.Position)
+                    local success, error = pcall(function()
+                        goToItem(collectible.Position)
+                    end)
+
+                    if not success then
+                        print("Error in collectLoot func:", error)
+                    end
                 end
             end
         end
@@ -753,7 +759,7 @@ end
 
 -- Functions to move character to given position
 function calcPath(pos)
-    local path = PathfindingService:CreatePath()
+    local path = PathfindingService:CreatePath({AgentJumpHeight = humanoid.JumpPower})
 
     local success, errorMessage
     local RETRY_NUM = 0
@@ -782,7 +788,7 @@ function calcPath(pos)
 
                 goToRandomPoint(false)
 
-                path:ComputeAsync(humanoidRoot.Position, pos)
+                success, errorMessage = pcall(path.ComputeAsync, path, humanoidRoot.Position, pos)
 
             until path.Status == Enum.PathStatus.Success or RETRY_NUM > MAX_RETRIES
 
@@ -888,12 +894,6 @@ function goToLocation(locationPos)
     repeat
         task.wait()
     until (humanoidRoot.Position - locationPos).Magnitude < 10
-
-    for index, ball in ipairs(ballParts) do
-        if ball and ball.Parent then
-            ball:Destroy()
-        end
-    end
 end
 
 -- function to walk user to an item
