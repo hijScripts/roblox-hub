@@ -24,13 +24,33 @@ local Tabs = {
 
 local Options = Fluent.Options
 
--- Player Variables
+-- Workspace Variables
 local workspace = game:GetService("Workspace")
-local player = game:GetService("Players").LocalPlayer
-local character = player.Character
-local humanoid = character:FindFirstChild("Humanoid")
-local humanoidRoot = character:WaitForChild("HumanoidRootPart")
-local virtualUser = game:GetService("VirtualUser")
+
+-- Player Variables
+local player
+local character
+local humanoid
+local humanoidRoot
+
+local function initializeCharacter()
+    player = game:GetService("Players").LocalPlayer
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    humanoidRoot = character:WaitForChild("HumanoidRootPart")
+
+    humanoid.Died:Connect(function()
+        print("Character has died! Waiting for respawn...")
+    end)
+end
+
+initializeCharacter()
+
+player.CharacterAdded:Connect(function(newCharacter)
+    task.wait(1)  -- Optional: Small delay to ensure everything loads properly
+    initializeCharacter()
+end)
+
 
 -- Path Variables
 local PathfindingService = game:GetService("PathfindingService")
@@ -73,9 +93,9 @@ local menu = player.PlayerGui.ScreenGui:FindFirstChild("Menus")
 local menuOptions = menu.Children:GetChildren()
 
 -- Anti AFK
-local player = game:GetService("Players").LocalPlayer
-player.Idled:connect(function()
-virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
+local virtualUser = game:GetService("VirtualUser")
+    player.Idled:connect(function()
+    virtualUser:CaptureController()virtualUser:ClickButton2(Vector2.new())
 end)
 
 -- Allowing pathfinding to go through invisible walls / objects / etc
@@ -785,7 +805,7 @@ function goToLocation(locationPos)
     end)
 
     if not success then
-        print("Error generating path, tweening instead.")
+        print("Error in goToLocation func, tweening instead.")
         local targetCFrame = CFrame.new(locationPos + Vector3.new(0, 5, 0))
         local tween = tweenService:Create(humanoidRoot, tweenInfo, {CFrame = targetCFrame})
 
@@ -866,7 +886,7 @@ function goToItem(itemPos)
     end)
 
     if not success then
-        print("Error:", error)
+        print("Error in goToItem func:", error)
     end
 
     local pathBlockedConnection
@@ -883,7 +903,13 @@ function goToItem(itemPos)
             -- making sure obstacle is further ahead
             if blockedWaypointIndex >= nextWaypointIndex then
                 pathBlockedConnection:Disconnect()
-                goToItem(itemPos)
+                local success, error = pcall(function()
+                    goToItem(itemPos)
+                end)
+
+                if not success then
+                    print("Error in goToItem func:", error)
+                end
             end
         end)
 
@@ -942,6 +968,8 @@ end
 
 --################################# "INJECTING" UI #################################--
 do
+
+
     Fluent:Notify({
         Title = "Notification",
         Content = "Good on ya",
@@ -995,7 +1023,7 @@ do
     -- Auto avoid spikes
     -- Auto Farm script
     farmToggle:OnChanged(function()
-        if Options.autoFarmToggle.Value == true then
+        if Options.autoFarmToggle.Value and Options.autoFarmToggle.Value == true then
             task.wait()
             print("Auto farm toggled on.")
             local selectedField = fieldDropdown.Value -- value to check for if user changes field
@@ -1003,13 +1031,13 @@ do
             -- going to selected field
             if selectedField and selectedField ~= "Empty" then 
                 for index, field in ipairs(fields) do
-                    if field.Name == selectedField then
+                    if field and field.Name == selectedField then
                         local success, error = pcall(function()
                             goToLocation(field.Position) 
                         end)
 
                         if not success then
-                            print("Error: error")
+                            print("Error in farmToggle:", error)
                         end
                     end
                 end
@@ -1021,8 +1049,8 @@ do
                 local newSelectedField = fieldDropdown.Value
 
                 -- field change check
-                if newSelectedField ~= selectedField then
-                    if newSelectedField and newSelectedField ~= "Empty" then
+                if newSelectedField and newSelectedField ~= selectedField then
+                    if newSelectedField ~= "Empty" then
                         if fields then
                             for index, field in ipairs(fields) do
                                 if field and field.Name == newSelectedField then
@@ -1042,7 +1070,13 @@ do
                 end
 
                 -- Mob nearby check
-                if checkForMonster() then print("Mob nearby!") repeat task.wait(0.1) humanoid.Jump = true until not checkForMonster() end -- jumps to avoid being hit by monster
+                if checkForMonster() then 
+                    print("Mob nearby!") 
+                    repeat 
+                        task.wait(0.1) 
+                        humanoid.Jump = true -- jumps to avoid being hit by monster
+                    until not checkForMonster() 
+                end 
 
                 -- Executing all activated functions
                 if Options.autoAvoidVicious.Value == true then viciousNearby() end
@@ -1056,35 +1090,35 @@ do
                 end)
 
                 if not success then
-                    print("Error:", error)
+                    print("Error in autoFarm func:", error)
                 end
 
             until Options.autoFarmToggle.Value == false
         else
-            print("Auto farm toggled off.")
+            task.wait(1)
         end
     end)
 
     -- Auto swing script
     swingToggle:OnChanged(function()
-        if Options.autoSwingToggle.Value == true then
+        if Options.autoSwingToggle.Value and Options.autoSwingToggle.Value == true then
             print("Auto swing toggled on.")
             repeat
                 task.wait()
                 autoFarm()
             until Options.autoSwingToggle.Value == false
         else
-            print("Auto swing toggled off.")
+            task.wait(1)
         end
     end)
 
     -- Auto sell script
     sellToggle:OnChanged(function()
-        if Options.autoSellToggle.Value == true then
+        if Options.autoSellToggle.Value and Options.autoSellToggle.Value == true then
             print("Auto sell toggled on.")
             if not checkOwnsHive() then claimHive() end -- Making sure user owns a hive otherwise it claims one for them
         else
-            print("Auto sell toggled off.")
+            task.wait(1)
         end
     end)
 
@@ -1184,7 +1218,13 @@ do
         Title = "Go to Hive",
         Description = "Takes you to your hive",
         Callback = function()
-            goToLocation(player.SpawnPos.Value.Position)
+            local success, error = pcall(function()
+                goToLocation(player.SpawnPos.Value.Position)
+            end)
+
+            if not success then
+                print("Error in goToHive button: "..error)
+            end
         end
     })
 
@@ -1205,6 +1245,10 @@ do
                     local success, error = pcall(function()
                         goToLocation(field.Position)
                     end)
+
+                    if not success then
+                        print("Error in fieldTP function: "..error)
+                    end
                 end
             end
         end
