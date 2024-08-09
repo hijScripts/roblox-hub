@@ -7,7 +7,7 @@ local humanoidRoot = character:WaitForChild("HumanoidRootPart")
 local virtualUser = game:GetService("VirtualUser")
 
 local tweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.new(5)
+local tweenInfo = TweenInfo.new(3)
 
 
 
