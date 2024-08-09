@@ -256,7 +256,7 @@ local function goToItem(itemPos)
     local waypoints = path:GetWaypoints()
 
     for index, waypoint in ipairs(waypoints) do
-
+ 
         -- need to catch blocked waypoints then call function onPathBlocked()
         pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
