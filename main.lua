@@ -795,7 +795,7 @@ function calcPath(pos)
             if path.Status == Enum.PathStatus.Success then
                 return path
             else
-                print("Cannot compute path, tweening instead...")
+                print("Cannot compute path...")
                 return nil
             end
         end
@@ -914,42 +914,44 @@ function goToItem(itemPos)
 
     local waypoints = path:GetWaypoints()
 
-    for index, waypoint in ipairs(waypoints) do
+    if waypoints then
+        for index, waypoint in ipairs(waypoints) do
 
-        -- need to catch blocked waypoints then call function onPathBlocked()
-        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+            -- need to catch blocked waypoints then call function onPathBlocked()
+            pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
-            -- making sure obstacle is further ahead
-            if blockedWaypointIndex >= nextWaypointIndex then
-                pathBlockedConnection:Disconnect()
-                local success, error = pcall(function()
-                    goToItem(itemPos)
-                end)
+                -- making sure obstacle is further ahead
+                if blockedWaypointIndex >= nextWaypointIndex then
+                    pathBlockedConnection:Disconnect()
+                    local success, error = pcall(function()
+                        goToItem(itemPos)
+                    end)
 
-                if not success then
-                    print("Error in goToItem func:", error)
+                    if not success then
+                        print("Error in goToItem func:", error)
+                    end
                 end
+            end)
+
+            -- update waypoint
+            currentWaypointIndex = currentWaypointIndex + 1
+            nextWaypointIndex = currentWaypointIndex + 1
+
+            -- jump if needed
+            if waypoint.Action == Enum.PathWaypointAction.Jump then
+                humanoid.Jump = true
             end
-        end)
 
-        -- update waypoint
-        currentWaypointIndex = currentWaypointIndex + 1
-        nextWaypointIndex = currentWaypointIndex + 1
-
-        -- jump if needed
-        if waypoint.Action == Enum.PathWaypointAction.Jump then
-            humanoid.Jump = true
+            -- walk to waypoint
+            humanoid:MoveTo(waypoint.Position)
+            humanoid.MoveToFinished:Wait()
         end
 
-        -- walk to waypoint
-        humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait()
+        -- repeat task.wait() until we can meet a condition
+        repeat
+            task.wait()
+        until (humanoidRoot.Position - itemPos).Magnitude < 10
     end
-
-    -- repeat task.wait() until we can meet a condition
-    repeat
-        task.wait()
-    until (humanoidRoot.Position - itemPos).Magnitude < 10
 end
 
 -- Move to random point in field
