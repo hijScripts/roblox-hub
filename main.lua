@@ -38,9 +38,10 @@ local function initializeCharacter()
     character = player.Character or player.CharacterAdded:Wait()
     humanoid = character:WaitForChild("Humanoid")
     humanoidRoot = character:WaitForChild("HumanoidRootPart")
+    local lastKnownPos
 
     humanoid.Died:Connect(function()
-        print("Character has died! Waiting for respawn...")
+        print("Character has died!")
     end)
 end
 
@@ -314,22 +315,24 @@ end
 
 -- Checks for nearby monster
 local function checkForMonster()
+
     -- Variable for mobs
     local mobFolder = workspace.Monsters
     local mobs = mobFolder:GetChildren()
+    local mobDetected = false
 
     if mobs and #mobs > 0 then -- Making sure there are mobs
-        for index, mob in mobs do
+        for index, mob in ipairs(mobs) do
             if mob and mob:FindFirstChild("HumanoidRootPart") then
                 local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
                 if mag <= 35 then
-                    return true
+                    mobDetected = true
                 end
             end
         end
     end
 
-    return false
+    return mobDetected
 end
 
 -- Auto summon eggs
@@ -797,7 +800,18 @@ function calcPath(pos)
 end
 
 -- function to walk user to location
+local ballParts = {}
 function goToLocation(locationPos)
+    -- removing any existing ballParts
+    for index, ball in ipairs(ballParts) do
+        if ball and ball.Parent then
+            ball:Destroy()
+        end
+    end
+
+    -- Clearing the table
+    ballParts = {}
+
     local path
 
     local success, error = pcall(function()
@@ -821,7 +835,6 @@ function goToLocation(locationPos)
     local pathBlockedConnection
     local currentWaypointIndex = 1
     local nextWaypointIndex = 2
-    local ballParts = {}
 
     local waypoints = path:GetWaypoints()
 
@@ -875,6 +888,12 @@ function goToLocation(locationPos)
     repeat
         task.wait()
     until (humanoidRoot.Position - locationPos).Magnitude < 10
+
+    for index, ball in ipairs(ballParts) do
+        if ball and ball.Parent then
+            ball:Destroy()
+        end
+    end
 end
 
 -- function to walk user to an item
@@ -968,8 +987,6 @@ end
 
 --################################# "INJECTING" UI #################################--
 do
-
-
     Fluent:Notify({
         Title = "Notification",
         Content = "Good on ya",
@@ -1025,49 +1042,63 @@ do
     farmToggle:OnChanged(function()
         if Options.autoFarmToggle.Value and Options.autoFarmToggle.Value == true then
             task.wait()
-            print("Auto farm toggled on.")
             local selectedField = fieldDropdown.Value -- value to check for if user changes field
+            local fieldPos
 
-            -- going to selected field
+            -- getting position of field
             if selectedField and selectedField ~= "Empty" then 
                 for index, field in ipairs(fields) do
                     if field and field.Name == selectedField then
-                        local success, error = pcall(function()
-                            goToLocation(field.Position) 
-                        end)
-
-                        if not success then
-                            print("Error in farmToggle:", error)
-                        end
+                        fieldPos = field.Position
                     end
                 end
             end 
+
+            humanoid.Died:Connect(function()
+                player.CharacterAdded:Wait() -- waiting for character to spawn back in
+
+                character = player.Character
+                humanoid = character:WaitForChild("Humanoid")
+                humanoidRoot = character:WaitForChild("HumanoidRootPart")
+
+                if Options.autoFarmToggle.Value and Options.autoFarmToggle.Value == true then
+                    task.spawn(function()
+                        Options.autoFarmToggle:SetValue(true)
+                    end)
+                end
+            end)
+        
+            -- going to selected field
+            local success, error = pcall(function()
+                goToLocation(fieldPos) 
+            end)
+
+            if not success then
+                print("Error in farmToggle:", error)
+            end
 
             repeat
                 task.wait()
                 local pos = humanoidRoot.Position
                 local newSelectedField = fieldDropdown.Value
 
-                -- field change check
-                if newSelectedField and newSelectedField ~= selectedField then
-                    if newSelectedField ~= "Empty" then
-                        if fields then
-                            for index, field in ipairs(fields) do
-                                if field and field.Name == newSelectedField then
-                                    local success, error = pcall(function()
-                                        goToLocation(field.Position)
-                                    end)
+                -- getting position of field
+                if newSelectedField and newSelectedField ~= selectedField and newSelectedField ~= "Empty" then
+                    for index, field in ipairs(fields) do
+                        if field and field.Name == selectedField then
+                            selectedField = newSelectedField
+                            fieldPos = field.Position
 
-                                    if not success then
-                                        print("Error: error")
-                                    end
+                            local success, error = pcall(function()
+                                goToLocation(fieldPos) 
+                            end)
 
-                                    selectedField = newSelectedField
-                                end
+                            if not success then
+                                print("Error: error")
                             end
                         end
                     end
-                end
+                end 
 
                 -- Mob nearby check
                 if checkForMonster() then 
@@ -1091,6 +1122,16 @@ do
 
                 if not success then
                     print("Error in autoFarm func:", error)
+                end
+
+                if not inField(selectedField) then
+                    local success, error = pcall(function()
+                        goToLocation(fieldPos) 
+                    end)
+
+                    if not success then
+                        print("Error returning to field:", error)
+                    end
                 end
 
             until Options.autoFarmToggle.Value == false
@@ -1255,109 +1296,3 @@ do
     end)
 
 end
--- Update quests
--- local args = {
---     [1] = "Bee Bear 6",
---     [2] = 1,
---     [3] = "Completed"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("UpdatePlayerNPCState"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "Mother Bear",
---     [2] = 4,
---     [3] = "Ongoing"
--- }
-
--- local args = {
---     [1] = "Sun Bear",
---     [2] = 1,
---     [3] = "Finish"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("UpdatePlayerNPCState"):FireServer(unpack(args))
-
-
--- Select Option
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("UpdatePlayerNPCState"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "GivePresentMother BearXmas2024"
--- }
-
--- Give Quest
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("SelectNPCOption"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "MotherBearXmas24"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GiveQuest"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "BlackBearXmas24"
--- }
-
--- -- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GiveQuest"):FireServer(unpack(args))
-
-
--- -- treats
--- local args = {
---     [1] = "Purchase",
---     [2] = {
---         ["Type"] = "Treat",
---         ["Category"] = "Eggs",
---         ["Amount"] = 1
---     }
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ItemPackageEvent"):InvokeServer(unpack(args))
-
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("RetrievePlayerStats"):InvokeServer()
-
-
-
--- local args = {
---     [1] = 1,
---     [2] = 3
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("GetBondToLevel"):InvokeServer(unpack(args))
-
-
-
--- local args = {
---     [1] = 1,
---     [2] = 3,
---     [3] = "Treat",
---     [4] = 1,
---     [5] = false
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ConstructHiveCellFromEgg"):InvokeServer(unpack(args))
-
-
--- -- collecting badges
--- local args = {
---     [1] = "Collect",
---     [2] = "Playtime"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("BadgeEvent"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "Panda Bear",
---     [2] = 2,
---     [3] = "Finish"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("UpdatePlayerNPCState"):FireServer(unpack(args))
-
--- local args = {
---     [1] = "Rhino Rumble"
--- }
-
--- game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("CompleteQuest"):FireServer(unpack(args))
---
