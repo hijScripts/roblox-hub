@@ -345,16 +345,17 @@ local function touchingGadget(pos)
     -- Gadget Variables
     local gadgetsFolder = workspace.Gadgets
     local gadgets = gadgetsFolder:GetChildren()
+    local touchingGadget = false
 
     if gadgets then
         for index, gadget in ipairs(gadgets) do
             if gadget and (pos - gadget.WorldPivot.Position).Magnitude <= 4 then
-                return true
+                touchingGadget = true
             end
         end
     end
 
-    return false
+    return touchingGadget
 end
 
 -- Check if item is inside a flower tile
@@ -363,25 +364,25 @@ local function touchingFlower(pos)
     -- Variables used for functions handling FlowerZones
     local flowersFolder = workspace.Flowers
     local flowers = flowersFolder:GetChildren()
+    local touchingFlower = false
 
     if flowers then
         for index, flower in ipairs(flowers) do
             if flower and pos and (pos - flower.Position).Magnitude <= 4 then
-                return true
+                touchingFlower = true
             end
         end
     end
 
     if pos and touchingGadget(pos) then -- sometimes gadget can take over flower tile which causes issues
-        return true
+        touchingFlower = true
     end
 
-    return false
+    return touchingFlower
 end
 
 -- Checks if in field
 local function inField(farmField)
-
     if fields then
         for index, field in ipairs(fields) do
             if field and field.Name == farmField then
@@ -415,7 +416,13 @@ local function updateQuest(npc)
     if npcs then
         for index, NPC in ipairs(npcs) do
             if NPC and NPC.Name == npc then -- going to selected NPC
-                goToLocation(NPC.Circle.Position)
+                local success, error = pcall(function()
+                    goToLocation(NPC.Circle.Position)
+                end)
+
+                if not success then
+                    print("Error trying to go to NPC in updateQuest func:"..error)
+                end
 
                 clickMouse(500, 50) -- Clicking activate button to claim the quest
 
@@ -457,7 +464,13 @@ local function followCloud()
     end
 
     if #fieldClouds > 0 then
-        goToItem(fieldClouds[1].Root.Position)
+        local success, error = pcall(function()
+            goToItem(fieldClouds[1].Root.Position)
+        end)
+
+        if not success then
+            print("Error going to cloud in followCloud: "..error)
+        end
     end
 end
 
@@ -492,7 +505,13 @@ local function autoSell()
         local pollen = player.CoreStats.Pollen.Value
         local capacity = player.CoreStats.Capacity.Value
 
-        goToLocation(player.SpawnPos.Value.Position)
+        local success, error = pcall(function()
+            goToLocation(player.SpawnPos.Value.Position)
+        end)
+
+        if not success then
+            print("Error trying to go to Hive in autoSell func:"..error)
+        end
 
         task.wait(1.5)
 
@@ -507,7 +526,13 @@ local function autoSell()
         task.wait(5) -- Getting last drops of pollen out
         
         if pos then
-            goToLocation(pos) -- Returning to original position
+            local success, error = pcall(function()
+                goToLocation(pos) -- Returning to original position
+            end)
+
+            if not success then
+                print("Error trying to return to OG position in autoSell func:"..error)
+            end
         end
     end
 end
@@ -524,14 +549,12 @@ local function viciousNearby()
                     local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
                     if mag <= 50 then
                         print("Vicious Bee in area... Fleeing to safety.")
-                        local targetCFrame = CFrame.new(player.SpawnPos.Value.Position + Vector3.new(0, 5, 0))
-                        local tween = tweenService:Create(humanoidRoot, tweenInfo, {CFrame = targetCFrame})
-
-                        if not tween.PlaybackState == Enum.PlaybackState.Playing then
-                            tween:Play()
-                        else
-                            tween:Cancel()
-                            tween:Play()
+                        local success, error = pcall(function()
+                            tween(player.SpawnPos.Value.Position)
+                        end)
+                
+                        if not success then
+                            print("Error when tweening in goToLocation func:"..error)
                         end
 
                         repeat
@@ -757,6 +780,18 @@ local function autoQuest()
     end
 end
 
+function tween(locationPos)
+    local targetCFrame = CFrame.new(locationPos + Vector3.new(0, 5, 0))
+    local tween = tweenService:Create(humanoidRoot, tweenInfo, {CFrame = targetCFrame})
+
+    if not tween.PlaybackState == Enum.PlaybackState.Playing then
+        tween:Play()
+    else
+        tween:Cancel()
+        tween:Play()
+    end
+end
+
 -- Functions to move character to given position
 function calcPath(pos)
     local path = PathfindingService:CreatePath({AgentJumpHeight = humanoid.JumpPower})
@@ -826,14 +861,12 @@ function goToLocation(locationPos)
 
     if not path then
         print("Error in goToLocation func, tweening instead.")
-        local targetCFrame = CFrame.new(locationPos + Vector3.new(0, 5, 0))
-        local tween = tweenService:Create(humanoidRoot, tweenInfo, {CFrame = targetCFrame})
+        local success, error = pcall(function()
+            tween(locationPos)
+        end)
 
-        if not tween.PlaybackState == Enum.PlaybackState.Playing then
-            tween:Play()
-        else
-            tween:Cancel()
-            tween:Play()
+        if not success then
+            print("Error when tweening in goToLocation func")
         end
     else
         local reachedConnection
