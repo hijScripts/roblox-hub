@@ -824,7 +824,7 @@ function goToLocation(locationPos)
         path = calcPath(locationPos)
     end)
 
-    if not success then
+    if not path then
         print("Error in goToLocation func, tweening instead.")
         local targetCFrame = CFrame.new(locationPos + Vector3.new(0, 5, 0))
         local tween = tweenService:Create(humanoidRoot, tweenInfo, {CFrame = targetCFrame})
@@ -835,18 +835,16 @@ function goToLocation(locationPos)
             tween:Cancel()
             tween:Play()
         end
-    end
+    else
+        local reachedConnection
+        local pathBlockedConnection
+        local currentWaypointIndex = 1
+        local nextWaypointIndex = 2
 
-    local reachedConnection
-    local pathBlockedConnection
-    local currentWaypointIndex = 1
-    local nextWaypointIndex = 2
+        local waypoints = path:GetWaypoints()
 
-    local waypoints = path:GetWaypoints()
-
-    if waypoints then
-        for index, waypoint in ipairs(waypoints) do
-            if waypoint then
+        if waypoints then
+            for index, waypoint in ipairs(waypoints) do
                 -- spawn dots to destination
                 task.wait()
                 local part = Instance.new("Part")
@@ -863,11 +861,9 @@ function goToLocation(locationPos)
                 table.insert(ballParts, part)
             end
         end
-    end
 
-    if waypoints then
-        for index, waypoint in ipairs(waypoints) do
-            if waypoint then
+        if waypoints then
+            for index, waypoint in ipairs(waypoints) do
                 -- need to catch blocked waypoints then call function onPathBlocked()
                 pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
@@ -912,19 +908,17 @@ function goToItem(itemPos)
         path = calcPath(itemPos)
     end)
 
-    if not success then
+    if not path then
         print("Error in goToItem func:", error)
-    end
+    else
+        local pathBlockedConnection
+        local currentWaypointIndex = 1
+        local nextWaypointIndex = currentWaypointIndex + 1
 
-    local pathBlockedConnection
-    local currentWaypointIndex = 1
-    local nextWaypointIndex = currentWaypointIndex + 1
+        local waypoints = path:GetWaypoints()
 
-    local waypoints = path:GetWaypoints()
-
-    if waypoints then
-        for index, waypoint in ipairs(waypoints) do
-            if waypoint then
+        if waypoints then
+            for index, waypoint in ipairs(waypoints) do
                 -- need to catch blocked waypoints then call function onPathBlocked()
                 pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
