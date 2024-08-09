@@ -846,7 +846,6 @@ function goToLocation(locationPos)
         if waypoints then
             for index, waypoint in ipairs(waypoints) do
                 -- spawn dots to destination
-                task.wait()
                 local part = Instance.new("Part")
                 part.Name = "GuideBall"
                 part.Shape = "Ball"
