@@ -337,33 +337,6 @@ local function checkForMonster()
     return false
 end
 
--- Function to check for vicious bee
-local function viciousNearby()
-    local mobFolder = workspace.Monsters
-    local mobs = mobFolder:GetChildren()
-
-    if #mobs > 0 then -- Making sure there are mobs
-        for index, mob in mobs do
-            if mob.Name:match("Vicious") then
-                if mob:FindFirstChild("HumanoidRootPart") then
-                    local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
-                    if mag <= 50 then
-                        print("Vicious Bee in area... Fleeing to safety.")
-                        -- local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
-                        -- local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
-                        -- tween:Play()
-                        goToLocation(player.SpawnPos.Value.Position)
-
-                        repeat
-                            task.wait()
-                        until not mob:FindFirstChild("HumanoidRootPart")
-                    end
-                end
-            end
-        end
-    end
-end
-
 -- Auto summon eggs
 
 -- shop TPs
@@ -667,6 +640,33 @@ local function goToItem(itemPos)
     repeat
         task.wait()
     until (humanoidRoot.Position - itemPos).Magnitude < 10
+end
+
+-- Function to check for vicious bee
+local function viciousNearby()
+    local mobFolder = workspace.Monsters
+    local mobs = mobFolder:GetChildren()
+
+    if #mobs > 0 then -- Making sure there are mobs
+        for index, mob in mobs do
+            if mob.Name:match("Vicious") then
+                if mob:FindFirstChild("HumanoidRootPart") then
+                    local mag = math.floor((humanoidRoot.Position - mob.HumanoidRootPart.Position).Magnitude) -- getting distance between humanoid and field centre
+                    if mag <= 50 then
+                        print("Vicious Bee in area... Fleeing to safety.")
+                        -- local pos = {position = Vector3.new(player.SpawnPos.Value.Position.X, player.SpawnPos.Value.Position.Y, player.SpawnPos.Value.Position.Z)}
+                        -- local tween = tweenService:Create(humanoidRoot, tweenInfo, pos)
+                        -- tween:Play()
+                        goToLocation(player.SpawnPos.Value.Position)
+
+                        repeat
+                            task.wait()
+                        until not mob:FindFirstChild("HumanoidRootPart")
+                    end
+                end
+            end
+        end
+    end
 end
 
 -- Auto Quest function
