@@ -844,56 +844,64 @@ function goToLocation(locationPos)
 
     local waypoints = path:GetWaypoints()
 
-    for index, waypoint in ipairs(waypoints) do
-        -- spawn dots to destination
-        task.wait()
-        local part = Instance.new("Part")
-        part.Name = "GuideBall"
-        part.Shape = "Ball"
-        part.Color = Color3.new(255, 0, 0)
-        part.Material = "Neon"
-        part.Size = Vector3.new(0.6, 0.6, 0.6)
-        part.Position = waypoint.Position + Vector3.new(0, 5, 0)
-        part.Anchored = true
-        part.CanCollide = false
-        part.Parent = workspace
+    if waypoints then
+        for index, waypoint in ipairs(waypoints) do
+            if waypoint then
+                -- spawn dots to destination
+                task.wait()
+                local part = Instance.new("Part")
+                part.Name = "GuideBall"
+                part.Shape = "Ball"
+                part.Color = Color3.new(255, 0, 0)
+                part.Material = "Neon"
+                part.Size = Vector3.new(0.6, 0.6, 0.6)
+                part.Position = waypoint.Position + Vector3.new(0, 5, 0)
+                part.Anchored = true
+                part.CanCollide = false
+                part.Parent = workspace
 
-        table.insert(ballParts, part)
-    end
-
-    for index, waypoint in ipairs(waypoints) do
-        -- need to catch blocked waypoints then call function onPathBlocked()
-        pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
-
-            -- making sure obstacle is further ahead
-            if blockedWaypointIndex >= nextWaypointIndex then
-                pathBlockedConnection:Disconnect()
-                goToLocation(locationPos)
+                table.insert(ballParts, part)
             end
-        end)
-            
-        -- delete the ball
-        ballParts[currentWaypointIndex]:Destroy()
-
-        -- update waypoint
-        currentWaypointIndex = currentWaypointIndex + 1
-
-        -- jump if needed
-        if waypoint.Action == Enum.PathWaypointAction.Jump then
-            humanoid.Jump = true
         end
-
-        -- walk to waypoint
-        humanoid:MoveTo(waypoint.Position)
-        humanoid.MoveToFinished:Wait()
-
-        nextWaypointIndex = nextWaypointIndex + 1
     end
 
-    -- repeat task.wait() until we can meet a condition
-    repeat
-        task.wait()
-    until (humanoidRoot.Position - locationPos).Magnitude < 10
+    if waypoints then
+        for index, waypoint in ipairs(waypoints) do
+            if waypoint then
+                -- need to catch blocked waypoints then call function onPathBlocked()
+                pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+
+                    -- making sure obstacle is further ahead
+                    if blockedWaypointIndex >= nextWaypointIndex then
+                        pathBlockedConnection:Disconnect()
+                        goToLocation(locationPos)
+                    end
+                end)
+                    
+                -- delete the ball
+                ballParts[currentWaypointIndex]:Destroy()
+
+                -- update waypoint
+                currentWaypointIndex = currentWaypointIndex + 1
+
+                -- jump if needed
+                if waypoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid.Jump = true
+                end
+
+                -- walk to waypoint
+                humanoid:MoveTo(waypoint.Position)
+                humanoid.MoveToFinished:Wait()
+
+                nextWaypointIndex = nextWaypointIndex + 1
+            end
+
+            -- repeat task.wait() until we can meet a condition
+            repeat
+                task.wait()
+            until (humanoidRoot.Position - locationPos).Magnitude < 10
+        end
+    end
 end
 
 -- function to walk user to an item
@@ -916,41 +924,42 @@ function goToItem(itemPos)
 
     if waypoints then
         for index, waypoint in ipairs(waypoints) do
+            if waypoint then
+                -- need to catch blocked waypoints then call function onPathBlocked()
+                pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
 
-            -- need to catch blocked waypoints then call function onPathBlocked()
-            pathBlockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+                    -- making sure obstacle is further ahead
+                    if blockedWaypointIndex >= nextWaypointIndex then
+                        pathBlockedConnection:Disconnect()
+                        local success, error = pcall(function()
+                            goToItem(itemPos)
+                        end)
 
-                -- making sure obstacle is further ahead
-                if blockedWaypointIndex >= nextWaypointIndex then
-                    pathBlockedConnection:Disconnect()
-                    local success, error = pcall(function()
-                        goToItem(itemPos)
-                    end)
-
-                    if not success then
-                        print("Error in goToItem func:", error)
+                        if not success then
+                            print("Error in goToItem func:", error)
+                        end
                     end
+                end)
+
+                -- update waypoint
+                currentWaypointIndex = currentWaypointIndex + 1
+                nextWaypointIndex = currentWaypointIndex + 1
+
+                -- jump if needed
+                if waypoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid.Jump = true
                 end
-            end)
 
-            -- update waypoint
-            currentWaypointIndex = currentWaypointIndex + 1
-            nextWaypointIndex = currentWaypointIndex + 1
-
-            -- jump if needed
-            if waypoint.Action == Enum.PathWaypointAction.Jump then
-                humanoid.Jump = true
+                -- walk to waypoint
+                humanoid:MoveTo(waypoint.Position)
+                humanoid.MoveToFinished:Wait()
             end
 
-            -- walk to waypoint
-            humanoid:MoveTo(waypoint.Position)
-            humanoid.MoveToFinished:Wait()
+            -- repeat task.wait() until we can meet a condition
+            repeat
+                task.wait()
+            until (humanoidRoot.Position - itemPos).Magnitude < 10
         end
-
-        -- repeat task.wait() until we can meet a condition
-        repeat
-            task.wait()
-        until (humanoidRoot.Position - itemPos).Magnitude < 10
     end
 end
 
